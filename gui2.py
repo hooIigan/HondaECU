@@ -4,6 +4,7 @@ import wx
 import usb1
 import pylibftdi
 import time
+import platform
 from threading import Thread
 from wx.lib.pubsub import pub
 from ecu import *
@@ -31,6 +32,9 @@ class USBMonitor(Thread):
 					if not serial in new_devices:
 						wx.CallAfter(pub.sendMessage, "USBMonitor", action="remove", device=str(device), serial=serial)
 				self.ftdi_devices = new_devices
+			except usb1.USBErrorNotSupported:
+				if platform.system() == "Windows":
+					wx.LogSysError("Incorrect driver for device on %s, install libusbK with Zadig!" % device)
 			except usb1.USBErrorPipe:
 				pass
 			except usb1.USBErrorNoDevice:
