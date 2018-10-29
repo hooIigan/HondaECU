@@ -30,8 +30,9 @@ class USBMonitor(Thread):
 							serial = device.getSerialNumber()
 							id += " | " + serial
 						except usb1.USBErrorNotSupported:
-							if platform.system() == "Windows":
-								wx.LogSysError("Incorrect driver for device on %s, install libusbK with Zadig!" % device)
+							pass
+							# if platform.system() == "Windows":
+							# 	wx.LogSysError("Incorrect driver for device on %s, install libusbK with Zadig!" % device)
 						new_devices[id] = device
 						if not id in self.ftdi_devices:
 							wx.CallAfter(pub.sendMessage, "USBMonitor", action="add", id=id, serial=serial)
