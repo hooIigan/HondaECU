@@ -82,14 +82,16 @@ class KlineWorker(Thread):
 		self.flash_mode = -1
 		self.flash_data = None
 		self.bootloader_offset = None
+		self.flash_offset = None
 
-	def FlashPanelHandler(self, mode, data, bootloader_offset):
+	def FlashPanelHandler(self, mode, data, bootloader_offset, offset):
 		wx.LogMessage("Flash operation (%d) requested" % (mode))
 		if mode > 0 and bootloader_offset!=None and bootloader_offset>0:
 			wx.LogMessage("Skipping bootloader at offset %s" % (hex(bootloader_offset)))
 		self.flash_data = data
 		self.bootloader_offset = bootloader_offset
 		self.flash_mode = mode
+		self.flash_offset = offset
 
 	def ErrorPanelHandler(self, action):
 		if action == "cleardtc":
@@ -115,7 +117,7 @@ class KlineWorker(Thread):
 
 	def do_read_flash(self, binfile, debug=False):
 		readsize = 12
-		location = 0
+		location = self.flash_offset
 		with open(binfile, "wb") as fbin:
 			t = time.time()
 			size = location
@@ -755,6 +757,9 @@ class FlashPanel(wx.Panel):
 		self.fixchecksum = wx.CheckBox(self, label="Fix")
 		self.skipbootloader = wx.CheckBox(self, label="Skip Bootloader")
 		self.checksum = wx.Choice(self, choices=list(checksums))
+		self.offsetl = wx.StaticText(self,label="Start Offset")
+		self.offset = wx.TextCtrl(self)
+		self.offset.SetValue("0x0")
 		self.gobutton = wx.Button(self, label="Start")
 
 		self.writefpicker.Show(False)
@@ -766,6 +771,8 @@ class FlashPanel(wx.Panel):
 		self.checksum.Disable()
 
 		self.optsbox = wx.BoxSizer(wx.HORIZONTAL)
+		self.optsbox.Add(self.offsetl, 0, flag=wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.LEFT, border=10)
+		self.optsbox.Add(self.offset, 0)
 		self.optsbox.Add(self.wchecksuml, 0, flag=wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.LEFT, border=10)
 		self.optsbox.Add(self.checksum, 0)
 		self.optsbox.Add(self.fixchecksum, 0, flag=wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.LEFT, border=10)
@@ -785,6 +792,7 @@ class FlashPanel(wx.Panel):
 		self.flashpsizer.AddGrowableCol(5,1)
 		self.SetSizer(self.flashpsizer)
 
+		self.offset.Bind(wx.EVT_TEXT, self.OnValidateMode)
 		self.fixchecksum.Bind(wx.EVT_CHECKBOX, self.OnFix)
 		self.readfpicker.Bind(wx.EVT_FILEPICKER_CHANGED, self.OnValidateMode)
 		self.writefpicker.Bind(wx.EVT_FILEPICKER_CHANGED, self.OnValidateMode)
@@ -809,8 +817,13 @@ class FlashPanel(wx.Panel):
 
 	def OnValidateMode(self, event):
 		go = False
+		offset = None
+		try:
+			offset = int(self.offset.GetValue(), 16)
+		except:
+			pass
 		if self.mode.GetSelection() == 0:
-			if len(self.readfpicker.GetPath()) > 0:
+			if len(self.readfpicker.GetPath()) > 0 and offset != None and offset>=0:
 				go = self.read
 		else:
 			if len(self.writefpicker.GetPath()) > 0:
@@ -866,6 +879,7 @@ class FlashPanel(wx.Panel):
 
 	def OnGo(self, event):
 		mode = self.mode.GetSelection()
+		offset = int(self.offset.GetValue(), 16)
 		if mode == 0:
 			bo = None
 			data = self.readfpicker.GetPath()
@@ -876,7 +890,7 @@ class FlashPanel(wx.Panel):
 			else:
 				bo = 0
 		self.gobutton.Disable()
-		dispatcher.send(signal="FlashPanel", sender=self, mode=mode, data=data, bootloader_offset=bo)
+		dispatcher.send(signal="FlashPanel", sender=self, mode=mode, data=data, bootloader_offset=bo, offset=offset)
 
 	def setEmergency(self, emergency):
 		if emergency:
@@ -1122,7 +1136,7 @@ class HondaECU_GUI(wx.Frame):
 				self.active_device = serial
 				dispatcher.send(signal="HondaECU.device", sender=self, action="activate", vendor=self.devices[self.active_device][0], product=self.devices[self.active_device][1], serial=self.active_device)
 
-	def FlashPanelHandler(self, mode, data):
+	def FlashPanelHandler(self, mode, data, bootloader_offset, offset):
 		self.flashdlg.ShowModal()
 		dispatcher.send(signal="HondaECU.device", sender=self, action="interrupt", vendor=self.devices[self.active_device][0], product=self.devices[self.active_device][1], serial=self.active_device)
 
