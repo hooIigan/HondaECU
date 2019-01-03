@@ -2,6 +2,9 @@ import argparse
 
 import os, sys
 import platform
+import urllib.request
+
+binsdb_url = "https://raw.githubusercontent.com/RyanHope/HondaECU/master/bins.md5"
 
 __VERSION__ = "2.0.0_rc4"
 
@@ -40,6 +43,9 @@ def Main():
 
 	parser_scan = subparsers.add_parser('scan', help='scan engine data')
 
+	parser_upload = subparsers.add_parser('upload', help='upload unknown binfile')
+	parser_upload.add_argument('binfile', help="name of input binfile")
+
 	parser_faults = subparsers.add_parser('faults', help='read fault codes')
 	parser_faults.add_argument('--clear', action='store_true', help="clear fault codes")
 
@@ -58,6 +64,15 @@ def Main():
 	db_grp.add_argument('--skip-power-check', action='store_true', help="skip power check")
 	args = parser.parse_args()
 
+	known_bins = {}
+	try:
+		r = urllib.request.urlopen(binsdb_url)
+		for l in r.readlines():
+			md5, file = l.decode("ascii").split()
+			known_bins[md5] = os.path.split(file)[-1]
+	except:
+		pass
+
 	if args.mode == None:
 		import wx
 		from gui import HondaECU_GUI
@@ -71,11 +86,11 @@ def Main():
 			import win32console as con
 			con.FreeConsole()
 		app = wx.App()
-		gui = HondaECU_GUI(args, __VERSION__)
+		gui = HondaECU_GUI(args, __VERSION__, known_bins)
 		app.MainLoop()
 	else:
 		from cmd import HondaECU_CmdLine
-		HondaECU_CmdLine(args, __VERSION__)
+		HondaECU_CmdLine(args, __VERSION__, known_bins)
 
 if __name__ == '__main__':
 	Main()

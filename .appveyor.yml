@@ -19,7 +19,7 @@ build: off
 install:
   - ps: Invoke-WebRequest -Uri 'https://sourceforge.net/projects/picusb/files/libftdi1-1.4git_devkit_x86_x64_14June2018.zip' -OutFile libftdi1-1.4git_devkit_x86_x64_14June2018.zip -UserAgent [Microsoft.PowerShell.Commands.PSUserAgent]::Chrome
   - cmd: 7z x libftdi1-1.4git_devkit_x86_x64_14June2018.zip
-  - cmd: '%PYTHON_HOME%\Scripts\pip install pywin32 pylibftdi pydispatcher wxPython pyinstaller'
+  - cmd: '%PYTHON_HOME%\Scripts\pip install pywin32 pylibftdi pydispatcher wxPython pyinstaller requests'
 
 build_script:
   - cmd: '%PYTHON_HOME%\python -m PyInstaller --onefile --clean --add-binary images/*;images --add-binary %LIBFTDI%;. HondaECU.py --name HondaECU --icon=images/honda.ico'

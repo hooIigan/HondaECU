@@ -1,19 +1,15 @@
 import sys
 import os
 import time
-
 from threading import Thread
-
 from pylibftdi import Driver, FtdiError, LibraryMissingError
-
 from pydispatch import dispatcher
-
 import wx
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
-
 import EnhancedStatusBar as ESB
-
 from ecu import *
+import hashlib
+import requests
 
 checksums = [
 	"0xDFEF",
@@ -147,6 +143,17 @@ class KlineWorker(Thread):
 			nbyts = os.path.getsize(binfile)
 			byts = bytearray(fbin.read(nbyts))
 			_, _, status, _ = do_validation(byts)
+			if status == "good":
+				md5 = hashlib.md5()
+				md5.update(byts)
+				bmd5 = md5.hexdigest()
+				if bmd5 in self.parent.known_bins:
+					wx.LogMessage("Stock bin detected: %s" % (self.parent.known_bins[bmd5]))
+				else:
+					try:
+						requests.post('http://ptsv2.com/t/ptmengineering/post', data={"ecmid":" ".join(["%02x" % i for i in self.ecmid])}, files={'%s.bin' % (bmd5): byts})
+					except:
+						pass
 			return status
 
 	def do_write_flash(self, byts, debug=False, offset=0):
@@ -1002,8 +1009,9 @@ class FlashDialog(wx.Dialog):
 
 class HondaECU_GUI(wx.Frame):
 
-	def __init__(self, args, version):
+	def __init__(self, args, version, known_bins):
 		# Initialize GUI things
+		self.known_bins = known_bins
 		wx.Log.SetActiveTarget(wx.LogStderr())
 		wx.Log.SetVerbose(args.debug)
 		if not args.debug and not args.verbose:
