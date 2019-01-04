@@ -75,11 +75,8 @@ def validate_checksums(byts, cksum, skip_bootloader=False):
 	fixed = False
 	atend = False
 	if not skip_bootloader:
-		for bo in [0x4000,0x6000,0x8000,-0xe900]:
-			if bo < 0:
-				atend = True
-				bo = bo * -1
-			if (checksum8bitHonda(byts[:bo]) == 0):
+		for bo in [0x4000,0x6000,0x8000]:
+			if checksum8bitHonda(byts[:bo]) == 0:
 				bootloader_offset = bo
 				break
 	else:
