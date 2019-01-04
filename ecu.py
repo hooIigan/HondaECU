@@ -73,8 +73,12 @@ def validate_checksums(byts, cksum, skip_bootloader=False):
 	ret = False
 	bootloader_offset = None
 	fixed = False
+	atend = False
 	if not skip_bootloader:
-		for bo in [0x4000,0x6000,0x8000]:
+		for bo in [0x4000,0x6000,0x8000,-0xe900]:
+			if bo < 0:
+				atend = True
+				bo = bo * -1
 			if (checksum8bitHonda(byts[:bo]) == 0):
 				bootloader_offset = bo
 				break
@@ -86,16 +90,16 @@ def validate_checksums(byts, cksum, skip_bootloader=False):
 		byts[cksum] = checksum8bitHonda(byts[bootloader_offset:cksum]+byts[(cksum+1):])
 		fixed = True
 		ret = (checksum8bitHonda(byts) == 0)
-	return ret, bootloader_offset, fixed, byts
+	return ret, bootloader_offset, fixed, byts, atend
 
 def do_validation(byts, cksum=0, skip_bootloader=False):
 	status = "good"
-	ret, bootloader_offset, fixed, byts = validate_checksums(byts, cksum, skip_bootloader=skip_bootloader)
+	ret, bootloader_offset, fixed, byts, atend = validate_checksums(byts, cksum, skip_bootloader=skip_bootloader)
 	if not ret:
 		status = "bad"
 	elif fixed:
 		status = "fixed"
-	return ret, bootloader_offset, status, byts
+	return ret, bootloader_offset, status, byts, atend
 
 def format_message(mtype, data):
 	ml = len(mtype)
@@ -378,51 +382,51 @@ class HondaECU(object):
 				break
 		return faults
 
-	def do_read_flash(self, binfile):
-		readsize = 12
-		location = 0
-		nl = False
-		with open(binfile, "wb") as fbin:
-			while True:
-				info = self.send_command([0x82, 0x82, 0x00], format_read(location) + [readsize])
-				if not info:
-					readsize -= 1
-					if readsize < 1:
-						break
-				else:
-					fbin.write(info[2])
-					fbin.flush()
-					location += readsize
-		with open(binfile, "rb") as fbin:
-			nbyts = os.path.getsize(binfile)
-			byts = bytearray(fbin.read(nbyts))
-			_, status = do_validation(byts)
-			return status == "good"
+	# def do_read_flash(self, binfile):
+	# 	readsize = 12
+	# 	location = 0
+	# 	nl = False
+	# 	with open(binfile, "wb") as fbin:
+	# 		while True:
+	# 			info = self.send_command([0x82, 0x82, 0x00], format_read(location) + [readsize])
+	# 			if not info:
+	# 				readsize -= 1
+	# 				if readsize < 1:
+	# 					break
+	# 			else:
+	# 				fbin.write(info[2])
+	# 				fbin.flush()
+	# 				location += readsize
+	# 	with open(binfile, "rb") as fbin:
+	# 		nbyts = os.path.getsize(binfile)
+	# 		byts = bytearray(fbin.read(nbyts))
+	# 		_, status = do_validation(byts)
+	# 		return status == "good"
 
-	def do_write_flash(self, byts, offset=0):
-		print("write start")
-		writesize = 128
-		maxi = len(byts)/128
-		i = 0
-		while i < maxi:
-			w = (i*writesize)
-			bytstart = [s for s in struct.pack(">H",offset+(8*i))]
-			if i+1 == maxi:
-				bytend = [s for s in struct.pack(">H",offset)]
-			else:
-				bytend = [s for s in struct.pack(">H",offset+(8*(i+1)))]
-			d = list(byts[((i+0)*128):((i+1)*128)])
-			x = bytstart + d + bytend
-			c1 = checksum8bit(x)
-			c2 = checksum8bitHonda(x)
-			x = [0x01, 0x06] + x + [c1, c2]
-			info = self.send_command([0x7e], x)
-			if not info or ord(info[1]) != 5:
-				return False
-			i += 1
-			if i % 2 == 0:
-				self.send_command([0x7e], [0x01, 0x08])
-		return True
+	# def do_write_flash(self, byts, offset=0):
+	# 	print("write start")
+	# 	writesize = 128
+	# 	maxi = len(byts)/128
+	# 	i = 0
+	# 	while i < maxi:
+	# 		w = (i*writesize)
+	# 		bytstart = [s for s in struct.pack(">H",offset+(8*i))]
+	# 		if i+1 == maxi:
+	# 			bytend = [s for s in struct.pack(">H",offset)]
+	# 		else:
+	# 			bytend = [s for s in struct.pack(">H",offset+(8*(i+1)))]
+	# 		d = list(byts[((i+0)*128):((i+1)*128)])
+	# 		x = bytstart + d + bytend
+	# 		c1 = checksum8bit(x)
+	# 		c2 = checksum8bitHonda(x)
+	# 		x = [0x01, 0x06] + x + [c1, c2]
+	# 		info = self.send_command([0x7e], x)
+	# 		if not info or ord(info[1]) != 5:
+	# 			return False
+	# 		i += 1
+	# 		if i % 2 == 0:
+	# 			self.send_command([0x7e], [0x01, 0x08])
+	# 	return True
 
 ##################################################
 
@@ -462,21 +466,23 @@ def do_read_flash(ecu, binfile, offset=0, debug=False):
 
 def do_write_flash(ecu, byts, debug=False, offset=0):
 	writesize = 128
-	maxi = int(len(byts)/128)
-	ossize = len(byts[offset:])
-	i = int(offset/128)
+	ossize = len(byts)
+	maxi = int(ossize/writesize)
+	offseti = int(offset/16)
+	i = 0
+	w = 0
 	t = time.time()
 	rate = 0
 	size = 0
 	nl = False
 	while i < maxi:
 		w = (i*writesize)
-		bytstart = [s for s in struct.pack(">H",(8*i))]
+		bytstart = [s for s in struct.pack(">H",offseti+(8*i))]
 		if i+1 == maxi:
 			bytend = [s for s in struct.pack(">H",0)]
 		else:
-			bytend = [s for s in struct.pack(">H",(8*(i+1)))]
-		d = list(byts[((i+0)*128):((i+1)*128)])
+			bytend = [s for s in struct.pack(">H",offseti+(8*(i+1)))]
+		d = list(byts[((i+0)*writesize):((i+1)*writesize)])
 		x = bytstart + d + bytend
 		c1 = checksum8bit(x)
 		c2 = checksum8bitHonda(x)
