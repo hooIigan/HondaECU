@@ -1,4 +1,9 @@
 *.txt
+*.idb
+*.id0
+*.id1
+*.nam
+*.til
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
