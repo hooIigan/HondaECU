@@ -13,6 +13,7 @@ import code
 ECM_IDs = {
 	"\x01\x00\x2b\x01\x01": ("CBR1000RR","2006-2007","38770-MEL-D21"),
 	"\x01\x00\x2b\x04\x02": ("CBR1000RR","2006-2007","38770-MEL-A22"),
+	"\x01\x00\x5e\x04\x01": ("CBR1000RR","2008-200X","38770-MFL-671"),
 	"\x01\x00\xf3\x04\x01": ("CBR1000RR","2012-2013","38770-MGP-A01"),
 	"\x01\x01\x83\x01\x01": ("CBR1000RR","2014-2016","38770-MGP-D62"),
 	"\x01\x01\x83\x04\x01": ("CBR1000RR","2014-2016","38770-MGP-A92"),
@@ -76,7 +77,7 @@ def validate_checksums(byts, cksum, skip_bootloader=False):
 	atend = False
 	if not skip_bootloader:
 		for bo in [0x4000,0x6000,0x8000]:
-			if checksum8bitHonda(byts[:bo]) == 0:
+			if bo < len(byts) and checksum8bitHonda(byts[:bo]) == 0:
 				bootloader_offset = bo
 				break
 	else:

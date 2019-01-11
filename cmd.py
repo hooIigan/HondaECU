@@ -130,7 +130,7 @@ def HondaECU_CmdLine(args, version, known_bins):
 				u = ">H12BHB"
 				h = header
 				table = None
-				for t in [0x10,0x11]:
+				for t in [0x10,0x11,0x17]:
 					info = ecu.send_command([0x72], [0x71, t], debug=args.debug)
 					if info and len(info[2][2:]) > 0:
 						table = t
@@ -138,6 +138,8 @@ def HondaECU_CmdLine(args, version, known_bins):
 				if t == 0x11:
 					u += "BH"
 					h += ["iacv_pulse_count","iacv_command"]
+				elif t == 0x17:
+					u += "BB"
 				args.output.write("%s\n" % "\t".join(h))
 				start = time.time()
 				while True:
