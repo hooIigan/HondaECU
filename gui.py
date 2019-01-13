@@ -11,16 +11,6 @@ from ecu import *
 import hashlib
 import requests
 
-checksums = [
-	"0xDFEF",
-	"0x18FFE",
-	"0x19FFE",
-	"0x1FFFA",
-	"0x3FFF8",
-	"0x7FFF8",
-	"0xFFFF8"
-]
-
 class USBMonitor(Thread):
 
 	def __init__(self, parent):
@@ -752,12 +742,12 @@ class FlashPanel(wx.Panel):
 
 		self.mode = wx.RadioBox(self, label="Mode", choices=["Read","Write","Recover"])
 		self.wfilel = wx.StaticText(self, label="File")
-		self.wchecksuml = wx.StaticText(self,label="Checksum")
+		self.wchecksuml = wx.StaticText(self,label="Checksum Location")
 		self.readfpicker = wx.FilePickerCtrl(self, wildcard="ECU dump (*.bin)|*.bin", style=wx.FLP_SAVE|wx.FLP_USE_TEXTCTRL|wx.FLP_SMALL)
 		self.writefpicker = wx.FilePickerCtrl(self,wildcard="ECU dump (*.bin)|*.bin", style=wx.FLP_OPEN|wx.FLP_FILE_MUST_EXIST|wx.FLP_USE_TEXTCTRL|wx.FLP_SMALL)
 		self.fixchecksum = wx.CheckBox(self, label="Fix")
 		# self.skipbootloader = wx.CheckBox(self, label="Skip Bootloader")
-		self.checksum = wx.Choice(self, choices=list(checksums))
+		self.checksum = wx.TextCtrl(self)
 		self.offsetl = wx.StaticText(self,label="Start Offset")
 		self.offset = wx.TextCtrl(self)
 		self.offset.SetValue("0x0")
@@ -797,7 +787,7 @@ class FlashPanel(wx.Panel):
 		self.fixchecksum.Bind(wx.EVT_CHECKBOX, self.OnFix)
 		self.readfpicker.Bind(wx.EVT_FILEPICKER_CHANGED, self.OnValidateMode)
 		self.writefpicker.Bind(wx.EVT_FILEPICKER_CHANGED, self.OnValidateMode)
-		self.checksum.Bind(wx.EVT_CHOICE, self.OnValidateMode)
+		self.checksum.Bind(wx.EVT_TEXT, self.OnValidateMode)
 		self.mode.Bind(wx.EVT_RADIOBOX, self.OnModeChange)
 		self.gobutton.Bind(wx.EVT_BUTTON, self.OnGo)
 
@@ -823,6 +813,11 @@ class FlashPanel(wx.Panel):
 			offset = int(self.offset.GetValue(), 16)
 		except:
 			pass
+		checksum = None
+		try:
+			checksum = int(self.checksum.GetValue(), 16)
+		except:
+			pass
 		if self.mode.GetSelection() == 0:
 			if len(self.readfpicker.GetPath()) > 0 and offset != None and offset>=0:
 				go = self.read
@@ -830,7 +825,7 @@ class FlashPanel(wx.Panel):
 			if len(self.writefpicker.GetPath()) > 0:
 				if os.path.isfile(self.writefpicker.GetPath()):
 					if self.fixchecksum.IsChecked():
-						if self.checksum.GetSelection() > -1:
+						if checksum != None:
 							go = self.write
 					else:
 						go = self.write
@@ -841,8 +836,8 @@ class FlashPanel(wx.Panel):
 					fbin.close()
 					cksum = 0
 					if self.fixchecksum.IsChecked():
-						if self.checksum.GetSelection() > -1 and int(checksums[self.checksum.GetSelection()],16) < nbyts:
-							 cksum = int(checksums[self.checksum.GetSelection()],16)
+						if checksum != None and checksum < nbyts:
+							 cksum = checksum
 						else:
 							go = False
 					if go:
