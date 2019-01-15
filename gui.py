@@ -10,6 +10,7 @@ import EnhancedStatusBar as ESB
 from ecu import *
 import hashlib
 import requests
+import platform
 
 class USBMonitor(Thread):
 
@@ -1049,6 +1050,27 @@ class HondaECU_GUI(wx.Frame):
 		ib.AddIcon(ip)
 		self.SetIcons(ib)
 
+		self.menubar = wx.MenuBar()
+		fileMenu = wx.Menu()
+		quitItem = wx.MenuItem(fileMenu, wx.ID_EXIT, '&Quit\tCtrl+Q')
+		self.Bind(wx.EVT_MENU, self.OnClose, quitItem)
+		fileMenu.Append(quitItem)
+		self.menubar.Append(fileMenu, '&File')
+		helpMenu = wx.Menu()
+		if platform.system() == "Windows":
+			driverItem = wx.MenuItem(helpMenu, wx.ID_ANY, 'libusbK driver (Zadig)')
+			helpMenu.Append(driverItem)
+			self.Bind(wx.EVT_MENU, self.OnDriver, driverItem)
+		checksumItem = wx.MenuItem(helpMenu, wx.ID_ANY, 'Checksum Info')
+		self.Bind(wx.EVT_MENU, self.OnChecksums, checksumItem)
+		helpMenu.Append(checksumItem)
+		helpMenu.AppendSeparator()
+		aboutItem = wx.MenuItem(helpMenu, wx.ID_ANY, 'About')
+		self.Bind(wx.EVT_MENU, self.OnAbout, aboutItem)
+		helpMenu.Append(aboutItem)
+		self.menubar.Append(helpMenu, '&Help')
+		self.SetMenuBar(self.menubar)
+
 		wx.ToolTip.Enable(True)
 
 		self.statusicons = [
@@ -1116,6 +1138,15 @@ class HondaECU_GUI(wx.Frame):
 
 	def __deactivate(self):
 		self.active_device = None
+
+	def OnAbout(self, event):
+		print("OnAbout")
+
+	def OnChecksums(self, event):
+		wx.LaunchDefaultBrowser("https://github.com/RyanHope/HondaECU/blob/master/README.md#checksums")
+
+	def OnDriver(self, event):
+		wx.LaunchDefaultBrowser("https://zadig.akeo.ie")
 
 	def OnClose(self, event):
 		self.run = False
