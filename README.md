@@ -25,7 +25,7 @@ pip install pylibftdi wxPython pydispatcher
 
 ## Checksums
 
-| Model        | Year      | ROM Size | Keihin Code    | Checksum Address | Offset | CPU    |
+| Model        | Year      | ROM Size | Keihin Code    | Checksum<br>Address | Start<br>Offset | CPU    |
 |--------------|-----------|----------|----------------|------------------|--------|--------|
 | MSX125       | 2014      | 48 kb    | 38770-K26-911  |                  | 0x4000 | M16C   |
 | MSX125       | 2017      | 64 kb    | 38770-K26-B13  |                  | 0x8000 | M16C   |
