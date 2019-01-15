@@ -15,6 +15,7 @@ if __name__ == "__main__":
     contiguous = False
 
     for fn in args.binfile:
+        print("--------------------------------------------------------------")
         print(fn)
         fn = os.path.abspath(os.path.expanduser(fn))
         with open(fn, "rb") as f:
@@ -38,6 +39,7 @@ if __name__ == "__main__":
                     if b not in possible_boundaries:
                         possible_boundaries.append(b)
             possible_boundaries = sorted(possible_boundaries + [nbyts])
+            print("")
             print("  Found %d possible segment boundaries." % (len(possible_boundaries)))
 
             # Eliminate segment boudaries that don't produce segments with valid checksums
@@ -50,11 +52,13 @@ if __name__ == "__main__":
                     segments.append((segstart,b))
                     segstart = b
             ng = len(segments)
-            contiguous = sum([e-s for s,e in segments]) == nbyts
-            print("    Found %d valid contiguous segments:" % (ng))
+            print("    Found %d valid segments:" % (ng))
             for s in segments:
                 print("      0x%x:0x%x" % s)
-            if not contiguous:
+            complete = sum([e-s for s,e in segments]) == nbyts
+            if not complete:
+                if len(segments) > 0 and not complete:
+                    print("    Segments are incomplete.")
                 # Look for split segments
                 segments = []
                 npb = len(possible_boundaries)
@@ -62,14 +66,17 @@ if __name__ == "__main__":
                     for j in range(npb-i-1):
                         a = byts[:possible_boundaries[i]]
                         b = byts[possible_boundaries[i+j+1]:]
-                        if (checksum8bitHonda(a)!=0 and checksum8bitHonda(b)!=0) and not all([b==0xff for b in a]) and not all([b==0xff for b in b]) and checksum8bitHonda(a+b) == 0:
-                            segments.append((0x0,possible_boundaries[i],possible_boundaries[i+j+1],nbyts))
+                        c = byts[possible_boundaries[i]:possible_boundaries[i+j+1]]
+                        if (checksum8bitHonda(a)!=0 and checksum8bitHonda(b)!=0) and not all([b==0xff for b in a]) and not all([b==0xff for b in b]) and checksum8bitHonda(a+b) == 0 and checksum8bitHonda(c) == 0:
+                            segments.append((0x0,possible_boundaries[i],possible_boundaries[i+j+1],nbyts,possible_boundaries[i],possible_boundaries[i+j+1]))
 
                 ng = len(segments)
                 if ng > 0:
+                    print("")
                     print("    Found %d valid split segments:" % (ng))
                     for s in segments:
-                        print("      0x%x:0x%x 0x%x:0x%x" % s)
+                        print("      0x%x:0x%x + 0x%x:0x%x, 0x%x:0x%x" % s)
 
-            if len(segments) > 0 and checksum8bitHonda(byts) == 0:
+            if len(segments) == 1 and checksum8bitHonda(byts) == 0:
+                print("")
                 print("  Bin file appears valid!")
