@@ -1053,7 +1053,10 @@ class HondaECU_GUI(wx.Frame):
 
 		self.menubar = wx.MenuBar()
 		fileMenu = wx.Menu()
+		debugItem = wx.MenuItem(fileMenu, wx.ID_ANY, '&Debug output\tCtrl+D', kind=wx.ITEM_CHECK)
 		quitItem = wx.MenuItem(fileMenu, wx.ID_EXIT, '&Quit\tCtrl+Q')
+		self.Bind(wx.EVT_MENU, self.OnDebug, debugItem)
+		fileMenu.Append(debugItem)
 		self.Bind(wx.EVT_MENU, self.OnClose, quitItem)
 		fileMenu.Append(quitItem)
 		self.menubar.Append(fileMenu, '&File')
@@ -1071,6 +1074,7 @@ class HondaECU_GUI(wx.Frame):
 		helpMenu.Append(aboutItem)
 		self.menubar.Append(helpMenu, '&Help')
 		self.SetMenuBar(self.menubar)
+		debugItem.Check(args.debug)
 
 		wx.ToolTip.Enable(True)
 
@@ -1139,6 +1143,14 @@ class HondaECU_GUI(wx.Frame):
 
 	def __deactivate(self):
 		self.active_device = None
+
+	def OnDebug(self, event):
+		if event.IsChecked():
+			wx.Log.SetVerbose()
+			wx.Log.SetLogLevel(wx.LOG_Debug)
+		else:
+			wx.Log.SetVerbose(False)
+			wx.Log.SetLogLevel(wx.LOG_Error)
 
 	def OnAbout(self, event):
 		print("OnAbout")
