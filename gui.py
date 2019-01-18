@@ -134,19 +134,20 @@ class KlineWorker(Thread):
 			wx.CallAfter(dispatcher.send, signal="KlineWorker", sender=self, info="progress", value=(-1,"%.02fKB @ %s" % (location/1024.0, "%.02fB/s" % (rate) if rate > 0 else "---")))
 		with open(binfile, "rb") as fbin:
 			nbyts = os.path.getsize(binfile)
-			byts = bytearray(fbin.read(nbyts))
-			_, _, status, _ = do_validation(byts)
-			if status == "good":
-				md5 = hashlib.md5()
-				md5.update(byts)
-				bmd5 = md5.hexdigest()
-				if bmd5 in self.parent.known_bins:
-					wx.LogMessage("Stock bin detected: %s" % (self.parent.known_bins[bmd5]))
-				else:
-					try:
-						requests.post('http://ptsv2.com/t/ptmengineering/post', data={"ecmid":" ".join(["%02x" % i for i in self.ecmid])}, files={'%s.bin' % (bmd5): byts})
-					except:
-						pass
+			if nbyts > 0:
+				byts = bytearray(fbin.read(nbyts))
+				_, _, status, _, _ = do_validation(byts)
+				if status == "good":
+					md5 = hashlib.md5()
+					md5.update(byts)
+					bmd5 = md5.hexdigest()
+					if bmd5 in self.parent.known_bins:
+						wx.LogMessage("Stock bin detected: %s" % (self.parent.known_bins[bmd5]))
+					else:
+						try:
+							requests.post('http://ptsv2.com/t/ptmengineering/post', data={"ecmid":" ".join(["%02x" % i for i in self.ecmid])}, files={'%s.bin' % (bmd5): byts})
+						except:
+							pass
 			return status
 
 	def do_write_flash(self, byts, debug=False, offset=0):
