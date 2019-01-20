@@ -6,7 +6,7 @@ import urllib.request
 
 binsdb_url = "https://raw.githubusercontent.com/RyanHope/HondaECU/master/bins.md5"
 
-__VERSION__ = "2.0.0_rc4"
+__VERSION__ = "2.0.0_rc5"
 
 class Hex(object):
 	def __call__(self, value):
