@@ -18,7 +18,6 @@ def HondaECU_CmdLine(args, version, known_bins):
 	offset = 0
 	binfile = None
 	ret = 1
-	bootloader_offset = None
 	if args.mode in ["read","write","recover","checksum","upload"]:
 		if os.path.isabs(args.binfile):
 			binfile = args.binfile
@@ -44,11 +43,7 @@ def HondaECU_CmdLine(args, version, known_bins):
 					sys.exit(-1)
 			print_header()
 			sys.stdout.write("Validating checksum\n")
-			ret, bootloader_offset, status, byts, atend = do_validation(byts, cksum, False if args.mode != "checksum" else args.skip_bootloader)
-			bo = "None"
-			if bootloader_offset:
-				bo = hex(bootloader_offset)
-			sys.stdout.write("  bootloader size: %s%s\n" % ("*" if atend else "", bo))
+			ret, status, byts = do_validation(byts, nbyts, cksum)
 			if status == "fixed":
 				if args.mode == "checksum":
 					fbin = open(binfile, "wb")
@@ -213,7 +208,7 @@ def HondaECU_CmdLine(args, version, known_bins):
 					with open(binfile, "rb") as fbin:
 						nbyts = os.path.getsize(binfile)
 						byts = bytearray(fbin.read(nbyts))
-						_, _, status, _, _ = do_validation(byts)
+						_, _, status, _, _ = do_validation(byts, nbyts)
 						sys.stdout.write("  status: %s\n" % (status))
 						if status == "good":
 							md5 = hashlib.md5()
@@ -250,14 +245,10 @@ def HondaECU_CmdLine(args, version, known_bins):
 
 				print_header()
 				sys.stdout.write("Writing ECU\n")
-				# if atend:
-				# 	byts = byts[:bootloader_offset]
 				#ecu.send_command([0x7e], [0x01, 0x01, 0x00])
 				#ecu.send_command([0x7e], [0x01, 0xa0, 0x02])
 				if args.offset and args.offset >= 0:
 					do_write_flash(ecu, byts, offset=args.offset, debug=args.debug)
-				# elif args.skip_bootloader:
-				# 	do_write_flash(ecu, byts, offset=bootloader_offset, debug=args.debug)
 				else:
 					do_write_flash(ecu, byts, debug=args.debug)
 

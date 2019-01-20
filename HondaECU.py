@@ -28,20 +28,17 @@ def Main():
 	parser_write.add_argument('binfile', help="name of input binfile")
 	parser_write.add_argument('--rom-size', default=default_romsize, type=int, help="size of ecu rom in kilobytes")
 	parser_write.add_argument('--fix-checksum', type=Hex(), help="hex location to fix binfile checksum")
-	# parser_write.add_argument('--skip-bootloader', action='store_true', help="skip writing bootloader")
 	parser_write.add_argument('--offset', help="write offset", type=Hex())
 
 	parser_recover = subparsers.add_parser('recover', help='recover ecu from binfile')
 	parser_recover.add_argument('binfile', help="name of input binfile")
 	parser_recover.add_argument('--rom-size', default=default_romsize, type=int, help="size of ecu rom in kilobytes")
 	parser_recover.add_argument('--fix-checksum', type=Hex(), help="hex location to fix binfile checksum")
-	# parser_recover.add_argument('--skip-bootloader', action='store_true', help="skip writing bootloader")
 	parser_recover.add_argument('--offset', help="write offset", type=Hex())
 
 	parser_checksum = subparsers.add_parser('checksum', help='validate binfile checksum')
 	parser_checksum.add_argument('binfile', help="name of input binfile")
 	parser_checksum.add_argument('--fix-checksum', type=Hex(), help="hex location to fix binfile checksum")
-	parser_checksum.add_argument('--skip-bootloader', action='store_true', help="skip checking bootloader")
 
 	parser_scan = subparsers.add_parser('scan', help='scan engine data')
 

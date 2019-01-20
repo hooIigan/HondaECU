@@ -70,34 +70,23 @@ def checksum8bitHonda(data):
 def checksum8bit(data):
 	return 0xff - ((sum(bytearray(data))-1) >> 8)
 
-def validate_checksums(byts, cksum, skip_bootloader=False):
+def validate_checksums(byts, nbyts, cksum):
 	ret = False
-	bootloader_offset = None
 	fixed = False
-	atend = False
-	if not skip_bootloader:
-		for bo in [0x4000,0x6000,0x8000]:
-			if bo < len(byts) and checksum8bitHonda(byts[:bo]) == 0:
-				bootloader_offset = bo
-				break
-	else:
-		bootloader_offset = 0x00
-	if (checksum8bitHonda(byts[bootloader_offset:]) == 0):
-		ret = checksum8bitHonda(byts) == 0
-	elif bootloader_offset and (cksum > bootloader_offset):
-		byts[cksum] = checksum8bitHonda(byts[bootloader_offset:cksum]+byts[(cksum+1):])
+	if cksum > 0 and cksum < nbyts:
+		byts[cksum] = checksum8bitHonda(byts[:cksum]+byts[(cksum+1):])
 		fixed = True
-		ret = (checksum8bitHonda(byts) == 0)
-	return ret, bootloader_offset, fixed, byts, atend
+	ret = checksum8bitHonda(byts)==0
+	return ret, fixed, byts
 
-def do_validation(byts, cksum=0, skip_bootloader=False):
+def do_validation(byts, nbyts, cksum=0):
 	status = "good"
-	ret, bootloader_offset, fixed, byts, atend = validate_checksums(byts, cksum, skip_bootloader=skip_bootloader)
+	ret, fixed, byts = validate_checksums(byts, nbyts, cksum)
 	if not ret:
 		status = "bad"
 	elif fixed:
 		status = "fixed"
-	return ret, bootloader_offset, status, byts, atend
+	return ret, status, byts
 
 def format_message(mtype, data):
 	ml = len(mtype)

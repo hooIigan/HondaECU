@@ -72,15 +72,11 @@ class KlineWorker(Thread):
 		self.clear_codes = False
 		self.flash_mode = -1
 		self.flash_data = None
-		self.bootloader_offset = None
 		self.flash_offset = None
 
-	def FlashPanelHandler(self, mode, data, bootloader_offset, offset):
+	def FlashPanelHandler(self, mode, data, offset):
 		wx.LogMessage("Flash operation (%d) requested" % (mode))
-		# if mode > 0 and bootloader_offset!=None and bootloader_offset>0:
-		# 	wx.LogMessage("Skipping bootloader at offset %s" % (hex(bootloader_offset)))
 		self.flash_data = data
-		# self.bootloader_offset = bootloader_offset
 		self.flash_mode = mode
 		self.flash_offset = offset
 
@@ -136,7 +132,7 @@ class KlineWorker(Thread):
 			nbyts = os.path.getsize(binfile)
 			if nbyts > 0:
 				byts = bytearray(fbin.read(nbyts))
-				_, _, status, _, _ = do_validation(byts)
+				_, _, status, _, _ = do_validation(byts, nbyts)
 				if status == "good":
 					md5 = hashlib.md5()
 					md5.update(byts)
@@ -206,7 +202,6 @@ class KlineWorker(Thread):
 					if self.state != 1:
 						self.flash_mode = -1
 						self.flash_data = None
-						self.bootloader_offset = None
 						self.ecmid = None
 						self.flashcount = -1
 						self.dtccount = -1
@@ -748,7 +743,6 @@ class FlashPanel(wx.Panel):
 		self.readfpicker = wx.FilePickerCtrl(self, wildcard="ECU dump (*.bin)|*.bin", style=wx.FLP_SAVE|wx.FLP_USE_TEXTCTRL|wx.FLP_SMALL)
 		self.writefpicker = wx.FilePickerCtrl(self,wildcard="ECU dump (*.bin)|*.bin", style=wx.FLP_OPEN|wx.FLP_FILE_MUST_EXIST|wx.FLP_USE_TEXTCTRL|wx.FLP_SMALL)
 		self.fixchecksum = wx.CheckBox(self, label="Fix")
-		# self.skipbootloader = wx.CheckBox(self, label="Skip Bootloader")
 		self.checksum = wx.TextCtrl(self)
 		self.offsetl = wx.StaticText(self,label="Start Offset")
 		self.offset = wx.TextCtrl(self)
@@ -757,7 +751,6 @@ class FlashPanel(wx.Panel):
 
 		self.writefpicker.Show(False)
 		self.fixchecksum.Show(False)
-		# self.skipbootloader.Show(False)
 		self.checksum.Show(False)
 		self.wchecksuml.Show(False)
 		self.gobutton.Disable()
@@ -769,7 +762,6 @@ class FlashPanel(wx.Panel):
 		self.optsbox.Add(self.wchecksuml, 0, flag=wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.LEFT, border=10)
 		self.optsbox.Add(self.checksum, 0)
 		self.optsbox.Add(self.fixchecksum, 0, flag=wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.LEFT, border=10)
-		# self.optsbox.Add(self.skipbootloader, 0, flag=wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.LEFT, border=10)
 
 		self.fpickerbox = wx.BoxSizer(wx.HORIZONTAL)
 		self.fpickerbox.Add(self.readfpicker, 1)
@@ -843,7 +835,7 @@ class FlashPanel(wx.Panel):
 						else:
 							go = False
 					if go:
-						ret, self.bootloader_offset, status, self.byts, atend = do_validation(byts, cksum)
+						ret, status, self.byts = do_validation(byts, nbyts, cksum)
 						go = (status != "bad")
 		if go:
 			self.gobutton.Enable()
@@ -860,7 +852,6 @@ class FlashPanel(wx.Panel):
 	def OnModeChange(self, event):
 		if self.mode.GetSelection() == 0:
 			self.fixchecksum.Show(False)
-			# self.skipbootloader.Show(False)
 			self.writefpicker.Show(False)
 			self.readfpicker.Show(True)
 			self.wchecksuml.Show(False)
@@ -869,7 +860,6 @@ class FlashPanel(wx.Panel):
 			self.wchecksuml.Show(True)
 			self.checksum.Show(True)
 			self.fixchecksum.Show(True)
-			# self.skipbootloader.Show(True)
 			self.writefpicker.Show(True)
 			self.readfpicker.Show(False)
 		self.Layout()
@@ -879,17 +869,11 @@ class FlashPanel(wx.Panel):
 		mode = self.mode.GetSelection()
 		offset = int(self.offset.GetValue(), 16)
 		if mode == 0:
-			bo = None
 			data = self.readfpicker.GetPath()
 		else:
 			data = self.byts
-			# if self.skipbootloader.IsChecked():
-			# 	bo = self.bootloader_offset
-			# else:
-			# 	bo = 0
-			bo = 0
 		self.gobutton.Disable()
-		dispatcher.send(signal="FlashPanel", sender=self, mode=mode, data=data, bootloader_offset=bo, offset=offset)
+		dispatcher.send(signal="FlashPanel", sender=self, mode=mode, data=data, offset=offset)
 
 	def setEmergency(self, emergency):
 		if emergency:
@@ -1177,7 +1161,7 @@ class HondaECU_GUI(wx.Frame):
 				self.active_device = serial
 				dispatcher.send(signal="HondaECU.device", sender=self, action="activate", vendor=self.devices[self.active_device][0], product=self.devices[self.active_device][1], serial=self.active_device)
 
-	def FlashPanelHandler(self, mode, data, bootloader_offset, offset):
+	def FlashPanelHandler(self, mode, data, offset):
 		self.flashdlg.ShowModal()
 		dispatcher.send(signal="HondaECU.device", sender=self, action="interrupt", vendor=self.devices[self.active_device][0], product=self.devices[self.active_device][1], serial=self.active_device)
 
