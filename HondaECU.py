@@ -64,6 +64,7 @@ def Main():
 	db_grp.add_argument('--latency', type=int, help="latency timer")
 	db_grp.add_argument('--baudrate', type=int, default=10400, help="baudrate")
 	db_grp.add_argument('--skip-power-check', action='store_true', help="skip power check")
+	db_grp.add_argument('--motoamerica', action='store_true')
 	args = parser.parse_args()
 
 	known_bins = {}
@@ -74,6 +75,10 @@ def Main():
 			known_bins[md5] = os.path.split(file)[-1]
 	except:
 		pass
+
+	version = __VERSION__
+	if args.motoamerica:
+		version = __VERSION__ + "__MA2019-0"
 
 	if args.mode == None:
 		import wx
@@ -88,11 +93,11 @@ def Main():
 			import win32console as con
 			con.FreeConsole()
 		app = wx.App()
-		gui = HondaECU_GUI(args, __VERSION__, known_bins)
+		gui = HondaECU_GUI(args, version, known_bins)
 		app.MainLoop()
 	else:
 		from cmd import HondaECU_CmdLine
-		HondaECU_CmdLine(args, __VERSION__, known_bins)
+		HondaECU_CmdLine(args, version, known_bins)
 
 if __name__ == '__main__':
 	Main()
