@@ -73,34 +73,23 @@ def checksum8bitHonda(data):
 def checksum8bit(data):
 	return 0xff - ((sum(bytearray(data))-1) >> 8)
 
-def validate_checksums(byts, cksum, skip_bootloader=False):
+def validate_checksums(byts, nbyts, cksum):
 	ret = False
-	bootloader_offset = None
 	fixed = False
-	atend = False
-	if not skip_bootloader:
-		for bo in [0x4000,0x6000,0x8000]:
-			if bo < len(byts) and checksum8bitHonda(byts[:bo]) == 0:
-				bootloader_offset = bo
-				break
-	else:
-		bootloader_offset = 0x00
-	if (checksum8bitHonda(byts[bootloader_offset:]) == 0):
-		ret = checksum8bitHonda(byts) == 0
-	elif bootloader_offset and (cksum > bootloader_offset):
-		byts[cksum] = checksum8bitHonda(byts[bootloader_offset:cksum]+byts[(cksum+1):])
+	if cksum > 0 and cksum < nbyts:
+		byts[cksum] = checksum8bitHonda(byts[:cksum]+byts[(cksum+1):])
 		fixed = True
-		ret = (checksum8bitHonda(byts) == 0)
-	return ret, bootloader_offset, fixed, byts, atend
+	ret = checksum8bitHonda(byts)==0
+	return ret, fixed, byts
 
-def do_validation(byts, cksum=0, skip_bootloader=False):
+def do_validation(byts, nbyts, cksum=0):
 	status = "good"
-	ret, bootloader_offset, fixed, byts, atend = validate_checksums(byts, cksum, skip_bootloader=skip_bootloader)
+	ret, fixed, byts = validate_checksums(byts, nbyts, cksum)
 	if not ret:
 		status = "bad"
 	elif fixed:
 		status = "fixed"
-	return ret, bootloader_offset, status, byts, atend
+	return ret, status, byts
 
 def format_message(mtype, data):
 	ml = len(mtype)
@@ -383,54 +372,6 @@ class HondaECU(object):
 				break
 		return faults
 
-	# def do_read_flash(self, binfile):
-	# 	readsize = 12
-	# 	location = 0
-	# 	nl = False
-	# 	with open(binfile, "wb") as fbin:
-	# 		while True:
-	# 			info = self.send_command([0x82, 0x82, 0x00], format_read(location) + [readsize])
-	# 			if not info:
-	# 				readsize -= 1
-	# 				if readsize < 1:
-	# 					break
-	# 			else:
-	# 				fbin.write(info[2])
-	# 				fbin.flush()
-	# 				location += readsize
-	# 	with open(binfile, "rb") as fbin:
-	# 		nbyts = os.path.getsize(binfile)
-	# 		byts = bytearray(fbin.read(nbyts))
-	# 		_, status = do_validation(byts)
-	# 		return status == "good"
-
-	# def do_write_flash(self, byts, offset=0):
-	# 	print("write start")
-	# 	writesize = 128
-	# 	maxi = len(byts)/128
-	# 	i = 0
-	# 	while i < maxi:
-	# 		w = (i*writesize)
-	# 		bytstart = [s for s in struct.pack(">H",offset+(8*i))]
-	# 		if i+1 == maxi:
-	# 			bytend = [s for s in struct.pack(">H",offset)]
-	# 		else:
-	# 			bytend = [s for s in struct.pack(">H",offset+(8*(i+1)))]
-	# 		d = list(byts[((i+0)*128):((i+1)*128)])
-	# 		x = bytstart + d + bytend
-	# 		c1 = checksum8bit(x)
-	# 		c2 = checksum8bitHonda(x)
-	# 		x = [0x01, 0x06] + x + [c1, c2]
-	# 		info = self.send_command([0x7e], x)
-	# 		if not info or ord(info[1]) != 5:
-	# 			return False
-	# 		i += 1
-	# 		if i % 2 == 0:
-	# 			self.send_command([0x7e], [0x01, 0x08])
-	# 	return True
-
-##################################################
-
 def print_header():
 	sys.stdout.write("===================================================\n")
 
@@ -464,6 +405,7 @@ def do_read_flash(ecu, binfile, offset=0, debug=False):
 	if nl:
 		sys.stdout.write("\n")
 		sys.stdout.flush()
+	return location > offset
 
 def do_write_flash(ecu, byts, debug=False, offset=0):
 	writesize = 128
@@ -476,7 +418,8 @@ def do_write_flash(ecu, byts, debug=False, offset=0):
 	rate = 0
 	size = 0
 	nl = False
-	while i < maxi:
+	done = False
+	while i < maxi and not done:
 		w = (i*writesize)
 		bytstart = [s for s in struct.pack(">H",offseti+(8*i))]
 		if i+1 == maxi:
@@ -492,6 +435,8 @@ def do_write_flash(ecu, byts, debug=False, offset=0):
 		if ord(info[1]) != 5:
 			sys.stdout.write(" error\n")
 			sys.exit(1)
+		if info[2][1] == 0:
+			done = True
 		n = time.time()
 		if not debug:
 			sys.stdout.write(u"\r  %.02fKB of %.02fKB @ %s        " % (w/1024.0, ossize/1024.0, "%.02fB/s" % (rate) if rate > 0 else "---"))
@@ -502,8 +447,7 @@ def do_write_flash(ecu, byts, debug=False, offset=0):
 				t = n
 				size = w
 		i += 1
-		if i % 2 == 0:
-			ecu.send_command([0x7e], [0x01, 0x08])
 	if nl:
 		sys.stdout.write("\n")
 		sys.stdout.flush()
+	ecu.send_command([0x7e], [0x01, 0x08])
