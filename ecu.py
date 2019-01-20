@@ -11,19 +11,19 @@ import math
 import code
 
 ECM_IDs = {
-	b"\x01\x00\x2b\x01\x01": ("CBR1000RR","2006-2007","38770-MEL-D21"),
-	b"\x01\x00\x2b\x04\x02": ("CBR1000RR","2006-2007","38770-MEL-A22"),
-	b"\x01\x00\x5e\x04\x01": ("CBR1000RR","2008-200X","38770-MFL-671"),
-	b"\x01\x00\xf3\x04\x01": ("CBR1000RR","2012-2013","38770-MGP-A01"),
-	b"\x01\x01\x83\x01\x01": ("CBR1000RR","2014-2016","38770-MGP-D62"),
-	b"\x01\x01\x83\x04\x01": ("CBR1000RR","2014-2016","38770-MGP-A92"),
-	b"\x01\x01\x25\x05\x01": ("CBR500R","2013-2016","38770-MGZ-A03"),
-	b"\x01\x01\x25\x0b\x01": ("CBR500R","2013-2016","38770-MGZ-C02"),
-	b"\x01\x01\x25\x01\x01": ("CBR500R","2013-2016","38770-MGZ-D02"),
-	# b"\x01\x01\x25\x05\x01": ("CBR500R","2017-2018","38770-MJW-AQ1"),
-	b"\x01\x01\xf2\x01\x01": ("CB500F","2016","38770-MJW-D51"),
-	b"\x01\x01\x28\x01\x01": ("CB500X","?2013?","?"),
-	b"\x01\x01\xde\x01\x01": ("CB500X","?2016?","?")
+	b"\x01\x00\x2b\x01\x01": {"model":"CBR1000RR","year":"2006-2007","pn":"38770-MEL-D21","checksum":"0x3fff8"},
+	b"\x01\x00\x2b\x04\x02": {"model":"CBR1000RR","year":"2006-2007","pn":"38770-MEL-A22","checksum":"0x3fff8"},
+	b"\x01\x00\x5e\x04\x01": {"model":"CBR1000RR","year":"2008-2011","pn":"38770-MFL-671","checksum":"0x3fff8"},
+	b"\x01\x00\xf3\x04\x01": {"model":"CBR1000RR","year":"2012-2013","pn":"38770-MGP-A01","checksum":"0x3fff8"},
+	b"\x01\x01\x83\x01\x01": {"model":"CBR1000RR","year":"2014-2016","pn":"38770-MGP-D62","checksum":"0x3fff8"},
+	b"\x01\x01\x83\x04\x01": {"model":"CBR1000RR","year":"2014-2016","pn":"38770-MGP-A92","checksum":"0x3fff8"},
+	b"\x01\x01\x25\x05\x01": {"model":"CBR500R","year":"2013-2016","pn":"38770-MGZ-A03","checksum":"0x3fff8"},
+	b"\x01\x01\x25\x0b\x01": {"model":"CBR500R","year":"2013-2016","pn":"38770-MGZ-C02","checksum":"0x3fff8"},
+	b"\x01\x01\x25\x01\x01": {"model":"CBR500R","year":"2013-2016","pn":"38770-MGZ-D02","checksum":"0x3fff8"}
+	# b"\x01\x01\x25\x05\x01": ("CBR500R","2017-2018","38770-MJW-AQ1"},
+	# b"\x01\x01\xf2\x01\x01": {"model":"CB500F","year":"2016","pn":"38770-MJW-D51","checksum":"0x3fff8"}
+	# b"\x01\x01\x28\x01\x01": {"model":"CB500X","?2013?","?"},
+	# b"\x01\x01\xde\x01\x01": {"model":"CB500X","?2016?","?"}
 }
 
 DTC = {

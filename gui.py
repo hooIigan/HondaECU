@@ -216,9 +216,8 @@ class KlineWorker(Thread):
 								info = self.ecu.send_command([0x72], [0x71, 0x00])
 								if info:
 									self.ecmid = info[2][2:7]
-									ecmid = " ".join(["%02x" % i for i in self.ecmid])
-									wx.CallAfter(dispatcher.send, signal="KlineWorker", sender=self, info="ecmid", value=ecmid)
-									wx.LogMessage("ECM id: %s" % (ecmid))
+									wx.CallAfter(dispatcher.send, signal="KlineWorker", sender=self, info="ecmid", value=bytes(self.ecmid))
+									wx.LogMessage("ECM id: %s" % (" ".join(["%02x" % i for i in self.ecmid])))
 							if self.flashcount < 0:
 								info = self.ecu.send_command([0x7d], [0x01, 0x01, 0x03])
 								if info:
@@ -1010,11 +1009,12 @@ class FlashDialog(wx.Dialog):
 class HondaECU_GUI(wx.Frame):
 
 	def __init__(self, args, version, known_bins):
+		self.args = args
 		# Initialize GUI things
 		self.known_bins = known_bins
 		wx.Log.SetActiveTarget(wx.LogStderr())
-		wx.Log.SetVerbose(args.debug)
-		if not args.debug and not args.verbose:
+		wx.Log.SetVerbose(self.args.debug)
+		if not self.args.debug and not self.args.verbose:
 			wx.Log.SetLogLevel(wx.LOG_Error)
 		self.run = True
 		self.active_device = None
@@ -1028,12 +1028,12 @@ class HondaECU_GUI(wx.Frame):
 
 		# Initialize threads
 		self.usbmonitor = USBMonitor(self)
-		self.klineworker = KlineWorker(self, args.baudrate)
+		self.klineworker = KlineWorker(self, self.args.baudrate)
 
 		# Setup GUI
 		wx.Frame.__init__(self, None, title=title)
-		self.SetSize(800,600)
-		self.SetMinSize(wx.Size(800,600))
+		self.SetSize(800,640)
+		self.SetMinSize(wx.Size(800,640))
 		ib = wx.IconBundle()
 		ib.AddIcon(ip)
 		self.SetIcons(ib)
@@ -1061,7 +1061,7 @@ class HondaECU_GUI(wx.Frame):
 		helpMenu.Append(aboutItem)
 		self.menubar.Append(helpMenu, '&Help')
 		self.SetMenuBar(self.menubar)
-		debugItem.Check(args.debug)
+		debugItem.Check(self.args.debug)
 
 		wx.ToolTip.Enable(True)
 
@@ -1072,32 +1072,21 @@ class HondaECU_GUI(wx.Frame):
 			wx.Image(os.path.join(self.basepath, "images/bullet_red.png"), wx.BITMAP_TYPE_ANY).ConvertToBitmap()
 		]
 
-		self.statusbar = ESB.EnhancedStatusBar(self, -1)
-		self.statusbar.SetFieldsCount(4)
-		self.statusbar.SetSize((-1, 28))
-		self.SetStatusBar(self.statusbar)
-		self.statusbar.SetStatusWidths([32, 170, 130, 110])
-		self.statusbar.SetStatusStyles([wx.SB_SUNKEN, wx.SB_SUNKEN, wx.SB_SUNKEN, wx.SB_SUNKEN])
-
-		self.statusicon = wx.StaticBitmap(self.statusbar)
-		self.statusicon.SetBitmap(self.statusicons[0])
-
-		self.ecmidl = wx.StaticText(self.statusbar)
-		self.flashcountl = wx.StaticText(self.statusbar)
-		self.dtccountl = wx.StaticText(self.statusbar)
-
-		self.statusbar.AddWidget(self.statusicon, pos=0)
-		self.statusbar.AddWidget(self.ecmidl, pos=1, horizontalalignment=ESB.ESB_ALIGN_LEFT)
-		self.statusbar.AddWidget(self.flashcountl, pos=2, horizontalalignment=ESB.ESB_ALIGN_LEFT)
-		self.statusbar.AddWidget(self.dtccountl, pos=3, horizontalalignment=ESB.ESB_ALIGN_LEFT)
-
 		self.panel = wx.Panel(self)
 
 		devicebox = wx.StaticBoxSizer(wx.HORIZONTAL, self.panel, "FTDI Devices")
-
 		self.m_devices = wx.Choice(self.panel, wx.ID_ANY, size=(-1,32))
 		devicebox.Add(self.m_devices, 1, wx.EXPAND | wx.ALL, 5)
 
+		ecubox = wx.StaticBoxSizer(wx.HORIZONTAL, self.panel, "Connected ECU")
+		self.m_ecu = wx.StaticText(self.panel, style=wx.ALIGN_CENTRE_HORIZONTAL)
+		font = self.m_ecu.GetFont()
+		font.SetWeight(wx.BOLD)
+		font.SetPointSize(20)
+		self.m_ecu.SetFont(font)
+		ecubox.Add(self.m_ecu, 1, wx.EXPAND | wx.ALL, 5)
+
+		self.flashdlg = FlashDialog(self)
 		self.notebook = wx.Notebook(self.panel, wx.ID_ANY)
 		self.flashp = FlashPanel(self)
 		self.datap = DataPanel(self)
@@ -1106,10 +1095,34 @@ class HondaECU_GUI(wx.Frame):
 		self.notebook.AddPage(self.datap, "Data Logging")
 		self.notebook.AddPage(self.errorp, "Diagnostic Trouble Codes")
 
-		self.flashdlg = FlashDialog(self)
+		self.statusbar = ESB.EnhancedStatusBar(self, -1)
+		self.SetStatusBar(self.statusbar)
+		self.statusbar.SetSize((-1, 28))
+		self.statusicon = wx.StaticBitmap(self.statusbar)
+		self.statusicon.SetBitmap(self.statusicons[0])
+		self.ecmidl = wx.StaticText(self.statusbar)
+		self.flashcountl = wx.StaticText(self.statusbar)
+		self.dtccountl = wx.StaticText(self.statusbar)
+		self.statusbar.SetFieldsCount(4)
+		self.statusbar.SetStatusWidths([32, 170, 130, 110])
+		if self.args.motoamerica:
+			self.flashp.Hide()
+			self.datap.Hide()
+			self.errorp.Hide()
+			self.dtccountl.Hide()
+			self.statusbar.SetStatusStyles([wx.SB_SUNKEN, wx.SB_SUNKEN, wx.SB_SUNKEN, wx.SB_FLAT])
+		else:
+
+			self.statusbar.SetStatusStyles([wx.SB_SUNKEN, wx.SB_SUNKEN, wx.SB_SUNKEN, wx.SB_SUNKEN])
+		self.statusbar.AddWidget(self.statusicon, pos=0)
+		self.statusbar.AddWidget(self.ecmidl, pos=1, horizontalalignment=ESB.ESB_ALIGN_LEFT)
+		self.statusbar.AddWidget(self.flashcountl, pos=2, horizontalalignment=ESB.ESB_ALIGN_LEFT)
+		self.statusbar.AddWidget(self.dtccountl, pos=3, horizontalalignment=ESB.ESB_ALIGN_LEFT)
 
 		mainbox = wx.BoxSizer(wx.VERTICAL)
-		mainbox.Add(devicebox, 0, wx.EXPAND | wx.ALL, 10)
+		mainbox.Add(devicebox, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+		mainbox.AddSpacer(5)
+		mainbox.Add(ecubox, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
 		mainbox.Add(self.notebook, 1, wx.EXPAND | wx.ALL, 10)
 		self.panel.SetSizer(mainbox)
 		self.panel.Layout()
@@ -1228,7 +1241,16 @@ class HondaECU_GUI(wx.Frame):
 			self.statusicon.Show(True)
 			self.statusbar.OnSize(None)
 		elif info == "ecmid":
-			self.ecmidl.SetLabel("   ECM ID: %s" % value)
+			self.ecmidl.SetLabel("   ECM ID: %s" % " ".join(["%02x" % i for i in value]))
+			if value in ECM_IDs:
+				self.m_ecu.SetLabel("%s (%s) - %s" % (ECM_IDs[value]["model"],ECM_IDs[value]["year"],ECM_IDs[value]["pn"]))
+				if "checksum" in ECM_IDs[value]:
+					self.flashp.checksum.SetValue(ECM_IDs[value]["checksum"])
+				if "offset" in ECM_IDs[value]:
+					self.offset.checksum.SetValue(ECM_IDs[value]["offset"])
+			else:
+				self.m_ecu.SetLabel("Unknown")
+			self.panel.Layout()
 			self.statusbar.OnSize(None)
 		elif info == "flashcount":
 			self.flashcountl.SetLabel("   Flash Count: %d" % value)
