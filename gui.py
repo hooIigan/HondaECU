@@ -1112,7 +1112,6 @@ class HondaECU_GUI(wx.Frame):
 			self.dtccountl.Hide()
 			self.statusbar.SetStatusStyles([wx.SB_SUNKEN, wx.SB_SUNKEN, wx.SB_SUNKEN, wx.SB_FLAT])
 		else:
-
 			self.statusbar.SetStatusStyles([wx.SB_SUNKEN, wx.SB_SUNKEN, wx.SB_SUNKEN, wx.SB_SUNKEN])
 		self.statusbar.AddWidget(self.statusicon, pos=0)
 		self.statusbar.AddWidget(self.ecmidl, pos=1, horizontalalignment=ESB.ESB_ALIGN_LEFT)
