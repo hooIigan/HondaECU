@@ -156,7 +156,8 @@ class KlineWorker(Thread):
 		t = time.time()
 		rate = 0
 		size = 0
-		while self.flash_mode > 0 and i < maxi:
+		done = False
+		while self.flash_mode > 0 and i < maxi and not done:
 			w = (i*writesize)
 			bytstart = [s for s in struct.pack(">H",offseti+(8*i))]
 			if i+1 == maxi:
@@ -171,6 +172,8 @@ class KlineWorker(Thread):
 			info = self.ecu.send_command([0x7e], x)
 			if not info or ord(info[1]) != 5:
 				return False
+			if info[2][1] == 0:
+				done = True
 			n = time.time()
 			wx.CallAfter(dispatcher.send, signal="KlineWorker", sender=self, info="progress", value=(i/maxi*100,"%.02fKB of %.02fKB @ %s" % (w/1024.0, ossize/1024.0, "%.02fB/s" % (rate) if rate > 0 else "---")))
 			if n-t > 1:
@@ -178,8 +181,7 @@ class KlineWorker(Thread):
 				t = n
 				size = w
 			i += 1
-			if i % 2 == 0:
-				self.ecu.send_command([0x7e], [0x01, 0x08])
+		self.ecu.send_command([0x7e], [0x01, 0x08])
 		if self.flash_mode > 0:
 			wx.CallAfter(dispatcher.send, signal="KlineWorker", sender=self, info="progress", value=(i/maxi*100,"%.02fKB of %.02fKB @ %s" % ((w-offset)/1024.0, ossize/1024.0, "%.02fB/s" % (rate) if rate > 0 else "---")))
 			return True

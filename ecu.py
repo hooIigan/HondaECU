@@ -462,7 +462,8 @@ def do_write_flash(ecu, byts, debug=False, offset=0):
 	rate = 0
 	size = 0
 	nl = False
-	while i < maxi:
+	done = False
+	while i < maxi and not done:
 		w = (i*writesize)
 		bytstart = [s for s in struct.pack(">H",offseti+(8*i))]
 		if i+1 == maxi:
@@ -478,6 +479,8 @@ def do_write_flash(ecu, byts, debug=False, offset=0):
 		if ord(info[1]) != 5:
 			sys.stdout.write(" error\n")
 			sys.exit(1)
+		if info[2][1] == 0:
+			done = True
 		n = time.time()
 		if not debug:
 			sys.stdout.write(u"\r  %.02fKB of %.02fKB @ %s        " % (w/1024.0, ossize/1024.0, "%.02fB/s" % (rate) if rate > 0 else "---"))
@@ -488,8 +491,7 @@ def do_write_flash(ecu, byts, debug=False, offset=0):
 				t = n
 				size = w
 		i += 1
-		if i % 2 == 0:
-			ecu.send_command([0x7e], [0x01, 0x08])
 	if nl:
 		sys.stdout.write("\n")
 		sys.stdout.flush()
+	ecu.send_command([0x7e], [0x01, 0x08])
