@@ -369,54 +369,6 @@ class HondaECU(object):
 				break
 		return faults
 
-	# def do_read_flash(self, binfile):
-	# 	readsize = 12
-	# 	location = 0
-	# 	nl = False
-	# 	with open(binfile, "wb") as fbin:
-	# 		while True:
-	# 			info = self.send_command([0x82, 0x82, 0x00], format_read(location) + [readsize])
-	# 			if not info:
-	# 				readsize -= 1
-	# 				if readsize < 1:
-	# 					break
-	# 			else:
-	# 				fbin.write(info[2])
-	# 				fbin.flush()
-	# 				location += readsize
-	# 	with open(binfile, "rb") as fbin:
-	# 		nbyts = os.path.getsize(binfile)
-	# 		byts = bytearray(fbin.read(nbyts))
-	# 		_, status = do_validation(byts)
-	# 		return status == "good"
-
-	# def do_write_flash(self, byts, offset=0):
-	# 	print("write start")
-	# 	writesize = 128
-	# 	maxi = len(byts)/128
-	# 	i = 0
-	# 	while i < maxi:
-	# 		w = (i*writesize)
-	# 		bytstart = [s for s in struct.pack(">H",offset+(8*i))]
-	# 		if i+1 == maxi:
-	# 			bytend = [s for s in struct.pack(">H",offset)]
-	# 		else:
-	# 			bytend = [s for s in struct.pack(">H",offset+(8*(i+1)))]
-	# 		d = list(byts[((i+0)*128):((i+1)*128)])
-	# 		x = bytstart + d + bytend
-	# 		c1 = checksum8bit(x)
-	# 		c2 = checksum8bitHonda(x)
-	# 		x = [0x01, 0x06] + x + [c1, c2]
-	# 		info = self.send_command([0x7e], x)
-	# 		if not info or ord(info[1]) != 5:
-	# 			return False
-	# 		i += 1
-	# 		if i % 2 == 0:
-	# 			self.send_command([0x7e], [0x01, 0x08])
-	# 	return True
-
-##################################################
-
 def print_header():
 	sys.stdout.write("===================================================\n")
 
@@ -450,6 +402,7 @@ def do_read_flash(ecu, binfile, offset=0, debug=False):
 	if nl:
 		sys.stdout.write("\n")
 		sys.stdout.flush()
+	return location > offset
 
 def do_write_flash(ecu, byts, debug=False, offset=0):
 	writesize = 128

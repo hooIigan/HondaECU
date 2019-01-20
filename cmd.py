@@ -202,22 +202,26 @@ def HondaECU_CmdLine(args, version, known_bins):
 						offset = args.offset
 					else:
 						offset = 0x0
-					do_read_flash(ecu, binfile, offset=offset, debug=args.debug)
-					print_header()
-					sys.stdout.write("Validating checksum\n")
-					with open(binfile, "rb") as fbin:
-						nbyts = os.path.getsize(binfile)
-						byts = bytearray(fbin.read(nbyts))
-						_, _, status, _, _ = do_validation(byts, nbyts)
-						sys.stdout.write("  status: %s\n" % (status))
-						if status == "good":
-							md5 = hashlib.md5()
-							md5.update(byts)
-							bmd5 = md5.hexdigest()
-							if bmd5 in known_bins:
-								sys.stdout.write("  stock bin detected: %s\n" % (known_bins[bmd5]))
-							else:
-								upload_unknown_bin(byts, bmd5, ecmid)
+					ret = do_read_flash(ecu, binfile, offset=offset, debug=args.debug)
+					if ret:
+						with open(binfile, "rb") as fbin:
+							nbyts = os.path.getsize(binfile)
+							if nbyts > 0:
+								print_header()
+								sys.stdout.write("Validating checksum\n")
+								byts = bytearray(fbin.read(nbyts))
+								_, status, _ = do_validation(byts, nbyts)
+								sys.stdout.write("  status: %s\n" % (status))
+								if status == "good":
+									md5 = hashlib.md5()
+									md5.update(byts)
+									bmd5 = md5.hexdigest()
+									if bmd5 in known_bins:
+										sys.stdout.write("  stock bin detected: %s\n" % (known_bins[bmd5]))
+									else:
+										upload_unknown_bin(byts, bmd5, ecmid)
+					else:
+						sys.stdout.write("  Read failed!\n")
 
 				elif args.mode == "write":
 					print_header()

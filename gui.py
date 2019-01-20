@@ -105,6 +105,7 @@ class KlineWorker(Thread):
 	def do_read_flash(self, binfile, debug=False):
 		readsize = 12
 		location = self.flash_offset
+		status = "bad"
 		with open(binfile, "wb") as fbin:
 			t = time.time()
 			size = location
@@ -126,13 +127,13 @@ class KlineWorker(Thread):
 						t = n
 						size = location
 			if self.flash_mode != 0:
-				return "bad"
+				return status
 			wx.CallAfter(dispatcher.send, signal="KlineWorker", sender=self, info="progress", value=(-1,"%.02fKB @ %s" % (location/1024.0, "%.02fB/s" % (rate) if rate > 0 else "---")))
 		with open(binfile, "rb") as fbin:
 			nbyts = os.path.getsize(binfile)
 			if nbyts > 0:
 				byts = bytearray(fbin.read(nbyts))
-				_, _, status, _, _ = do_validation(byts, nbyts)
+				_, status, _ = do_validation(byts, nbyts)
 				if status == "good":
 					md5 = hashlib.md5()
 					md5.update(byts)
