@@ -65,9 +65,9 @@ class KlineWorker(Thread):
 		self.ecmid = None
 		self.flashcount = -1
 		self.dtccount = -1
-		self.update_errors = True
+		self.update_errors = not self.parent.args.motoamerica
 		self.errorcodes = {}
-		self.update_tables = True
+		self.update_tables = not self.parent.args.motoamerica
 		self.tables = None
 		self.clear_codes = False
 		self.flash_mode = -1
