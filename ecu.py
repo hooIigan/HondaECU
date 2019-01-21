@@ -26,6 +26,16 @@ ECM_IDs = {
 	# b"\x01\x01\xde\x01\x01": {"model":"CB500X","?2016?","?"}
 }
 
+def find_compat_bins(base, ecmid):
+	bins = {}
+	for id in ECM_IDs:
+		if id[:3] == ecmid[:3]:
+			p = os.path.join(base,ECM_IDs[id]["model"]+"_"+ECM_IDs[id]["pn"].split("-")[1]+"_"+ECM_IDs[id]["year"],ECM_IDs[id]["pn"]+".bin")
+			if os.path.isfile(p):
+				bins[id] = ECM_IDs[id]
+				bins[id]["bin"] = p
+	return bins
+
 DTC = {
 	"01-01": "MAP sensor circuit low voltage",
 	"01-02": "MAP sensor circuit high voltage",

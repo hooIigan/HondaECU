@@ -8,6 +8,7 @@ import wx
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 import EnhancedStatusBar as ESB
 from ecu import *
+from motoamerica import *
 import hashlib
 import requests
 import platform
@@ -1006,6 +1007,43 @@ class FlashDialog(wx.Dialog):
 		self.EndModal(1)
 		self.SetState(msg="", msg2="", bmp=None, pgrs=None, btn=None)
 
+class RestorePanel(wx.Panel):
+
+	def __init__(self, parent):
+		self.parent = parent
+		self.compat_bins = {}
+		wx.Panel.__init__(self, parent.notebook)
+		self.bins = []
+		self.cbbp = wx.Panel(self)
+		self.cbbp.Hide()
+		self.compat_bins_box = wx.StaticBoxSizer(wx.VERTICAL, self.cbbp, "Compatible Stock ECU Images")
+		self.cbbp.SetSizer(self.compat_bins_box)
+		self.gobutton = wx.Button(self, label="Start")
+		self.restorepsizer = wx.GridBagSizer(0,0)
+		self.restorepsizer.Add(self.cbbp, pos=(0,1), span=(1,1), flag=wx.ALL, border=20)
+		self.restorepsizer.Add(self.gobutton, pos=(1,2), flag=wx.ALIGN_RIGHT|wx.ALIGN_BOTTOM|wx.BOTTOM|wx.RIGHT, border=10)
+		self.restorepsizer.AddGrowableRow(1,1)
+		self.restorepsizer.AddGrowableCol(1,1)
+		self.SetSizer(self.restorepsizer)
+		dispatcher.connect(self.KlineWorkerHandler, signal="KlineWorker", sender=dispatcher.Any)
+
+	def KlineWorkerHandler(self, info, value):
+		if info == "ecmid":
+			self.compat_bins = find_compat_bins(os.path.join(self.parent.basepath,"bins"), value)
+			for b in self.bins:
+				self.compat_bins_box.Remove(b)
+			self.bins = []
+			for k,v in self.compat_bins.items():
+				m = "%s (%s) - %s" % (v["model"],v["year"],v["pn"])
+				if len(self.bins) == 0:
+					self.bins.append(wx.RadioButton(self.cbbp, wx.ID_ANY, m, style=wx.RB_GROUP))
+				else:
+					self.bins.append(wx.RadioButton(self.cbbp, wx.ID_ANY, m))
+				self.compat_bins_box.Add(self.bins[-1], flag=wx.ALL, border=20)
+			if len(self.bins) > 0:
+				self.cbbp.Show()
+			self.Layout()
+
 class HondaECU_GUI(wx.Frame):
 
 	def __init__(self, args, version, known_bins):
@@ -1091,6 +1129,7 @@ class HondaECU_GUI(wx.Frame):
 		self.flashp = FlashPanel(self)
 		self.datap = DataPanel(self)
 		self.errorp = ErrorPanel(self)
+		self.restorep = RestorePanel(self)
 		self.notebook.AddPage(self.flashp, "Flash Operations")
 		self.notebook.AddPage(self.datap, "Data Logging")
 		self.notebook.AddPage(self.errorp, "Diagnostic Trouble Codes")
@@ -1106,6 +1145,7 @@ class HondaECU_GUI(wx.Frame):
 		self.statusbar.SetFieldsCount(4)
 		self.statusbar.SetStatusWidths([32, 170, 130, 110])
 		if self.args.motoamerica:
+			self.notebook.AddPage(self.restorep, "Restore Factory Image")
 			self.flashp.Hide()
 			self.datap.Hide()
 			self.errorp.Hide()
