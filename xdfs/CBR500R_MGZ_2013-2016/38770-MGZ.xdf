@@ -1,4 +1,4 @@
-<!-- Written 01/21/2019 00:17:22 -->
+<!-- Written 01/21/2019 23:08:53 -->
 <XDFFORMAT version="1.60">
   <XDFHEADER>
     <flags>0x1</flags>
@@ -10,8 +10,10 @@
     <CATEGORY index="0x1" name="Fuel" />
     <CATEGORY index="0x2" name="Ignition" />
     <CATEGORY index="0x3" name="Limiters" />
+    <CATEGORY index="0x4" name="MAP" />
+    <CATEGORY index="0x5" name="TPS" />
   </XDFHEADER>
-  <XDFTABLE uniqueid="0x0001" flags="0x0">
+  <XDFTABLE uniqueid="0x1" flags="0x0">
     <title>TPS Breakpoints</title>
     <CATEGORYMEM index="0" category="1" />
     <XDFAXIS id="x" uniqueid="0x0">
@@ -71,7 +73,7 @@
       </MATH>
     </XDFAXIS>
   </XDFTABLE>
-  <XDFTABLE uniqueid="0x0002" flags="0x0">
+  <XDFTABLE uniqueid="0x2" flags="0x0">
     <title>RPM Breakpoints</title>
     <CATEGORYMEM index="0" category="1" />
     <XDFAXIS id="x" uniqueid="0x0">
@@ -142,12 +144,13 @@
     </XDFAXIS>
   </XDFTABLE>
   <XDFTABLE uniqueid="0x1011" flags="0x0">
-    <title>Fuel MAP Cyl 1</title>
+    <title>MAP vs RPM Cyl 1</title>
     <CATEGORYMEM index="0" category="2" />
+    <CATEGORYMEM index="1" category="5" />
     <XDFAXIS id="x" uniqueid="0x0">
       <EMBEDDEDDATA mmedelementsizebits="8" mmedmajorstridebits="-32" mmedminorstridebits="0" />
       <indexcount>25</indexcount>
-      <embedinfo type="3" linkobjid="0x0001" />
+      <embedinfo type="3" linkobjid="0x1" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -158,7 +161,7 @@
     <XDFAXIS id="y" uniqueid="0x0">
       <EMBEDDEDDATA mmedelementsizebits="8" mmedmajorstridebits="-32" mmedminorstridebits="0" />
       <indexcount>35</indexcount>
-      <embedinfo type="3" linkobjid="0x0002" />
+      <embedinfo type="3" linkobjid="0x2" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -178,12 +181,13 @@
     </XDFAXIS>
   </XDFTABLE>
   <XDFTABLE uniqueid="0x1012" flags="0x0">
-    <title>Fuel MAP Cyl 2</title>
+    <title>MAP vs RPM Cyl 2</title>
     <CATEGORYMEM index="0" category="2" />
+    <CATEGORYMEM index="1" category="5" />
     <XDFAXIS id="x" uniqueid="0x0">
       <EMBEDDEDDATA mmedelementsizebits="8" mmedmajorstridebits="-32" mmedminorstridebits="0" />
       <indexcount>25</indexcount>
-      <embedinfo type="3" linkobjid="0x0001" />
+      <embedinfo type="3" linkobjid="0x1" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -194,7 +198,7 @@
     <XDFAXIS id="y" uniqueid="0x0">
       <EMBEDDEDDATA mmedelementsizebits="8" mmedmajorstridebits="-32" mmedminorstridebits="0" />
       <indexcount>35</indexcount>
-      <embedinfo type="3" linkobjid="0x0002" />
+      <embedinfo type="3" linkobjid="0x2" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -214,12 +218,13 @@
     </XDFAXIS>
   </XDFTABLE>
   <XDFTABLE uniqueid="0x1021" flags="0x0">
-    <title>Fuel TPS Cyl 1</title>
+    <title>TPS vs RPM Cyl 1</title>
     <CATEGORYMEM index="0" category="2" />
+    <CATEGORYMEM index="1" category="6" />
     <XDFAXIS id="x" uniqueid="0x0">
       <EMBEDDEDDATA mmedelementsizebits="8" mmedmajorstridebits="-32" mmedminorstridebits="0" />
       <indexcount>25</indexcount>
-      <embedinfo type="3" linkobjid="0x0001" />
+      <embedinfo type="3" linkobjid="0x1" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -230,7 +235,7 @@
     <XDFAXIS id="y" uniqueid="0x0">
       <EMBEDDEDDATA mmedelementsizebits="8" mmedmajorstridebits="-32" mmedminorstridebits="0" />
       <indexcount>35</indexcount>
-      <embedinfo type="3" linkobjid="0x0002" />
+      <embedinfo type="3" linkobjid="0x2" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -250,12 +255,13 @@
     </XDFAXIS>
   </XDFTABLE>
   <XDFTABLE uniqueid="0x1022" flags="0x0">
-    <title>Fuel TPS Cyl 2</title>
+    <title>TPS vs RPM Cyl 2</title>
     <CATEGORYMEM index="0" category="2" />
+    <CATEGORYMEM index="1" category="6" />
     <XDFAXIS id="x" uniqueid="0x0">
       <EMBEDDEDDATA mmedelementsizebits="8" mmedmajorstridebits="-32" mmedminorstridebits="0" />
       <indexcount>25</indexcount>
-      <embedinfo type="3" linkobjid="0x0001" />
+      <embedinfo type="3" linkobjid="0x1" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -266,7 +272,7 @@
     <XDFAXIS id="y" uniqueid="0x0">
       <EMBEDDEDDATA mmedelementsizebits="8" mmedmajorstridebits="-32" mmedminorstridebits="0" />
       <indexcount>35</indexcount>
-      <embedinfo type="3" linkobjid="0x0002" />
+      <embedinfo type="3" linkobjid="0x2" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -291,7 +297,7 @@
     <XDFAXIS id="x" uniqueid="0x0">
       <EMBEDDEDDATA mmedelementsizebits="8" mmedmajorstridebits="-32" mmedminorstridebits="0" />
       <indexcount>25</indexcount>
-      <embedinfo type="3" linkobjid="0x0001" />
+      <embedinfo type="3" linkobjid="0x1" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -302,7 +308,7 @@
     <XDFAXIS id="y" uniqueid="0x0">
       <EMBEDDEDDATA mmedelementsizebits="8" mmedmajorstridebits="-32" mmedminorstridebits="0" />
       <indexcount>35</indexcount>
-      <embedinfo type="3" linkobjid="0x0002" />
+      <embedinfo type="3" linkobjid="0x2" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -322,12 +328,12 @@
     </XDFAXIS>
   </XDFTABLE>
   <XDFTABLE uniqueid="0x2011" flags="0x0">
-    <title>Ignition Gear 1-2 Cyl 1</title>
+    <title>Ignition Gear 1</title>
     <CATEGORYMEM index="0" category="3" />
     <XDFAXIS id="x" uniqueid="0x0">
       <EMBEDDEDDATA mmedelementsizebits="8" mmedmajorstridebits="-32" mmedminorstridebits="0" />
       <indexcount>25</indexcount>
-      <embedinfo type="3" linkobjid="0x0001" />
+      <embedinfo type="3" linkobjid="0x1" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -338,7 +344,7 @@
     <XDFAXIS id="y" uniqueid="0x0">
       <EMBEDDEDDATA mmedelementsizebits="8" mmedmajorstridebits="-32" mmedminorstridebits="0" />
       <indexcount>35</indexcount>
-      <embedinfo type="3" linkobjid="0x0002" />
+      <embedinfo type="3" linkobjid="0x2" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -358,12 +364,12 @@
     </XDFAXIS>
   </XDFTABLE>
   <XDFTABLE uniqueid="0x2012" flags="0x0">
-    <title>Ignition Gear 1-2 Cyl 2</title>
+    <title>Ignition Gear 2</title>
     <CATEGORYMEM index="0" category="3" />
     <XDFAXIS id="x" uniqueid="0x0">
       <EMBEDDEDDATA mmedelementsizebits="8" mmedmajorstridebits="-32" mmedminorstridebits="0" />
       <indexcount>25</indexcount>
-      <embedinfo type="3" linkobjid="0x0001" />
+      <embedinfo type="3" linkobjid="0x1" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -374,7 +380,7 @@
     <XDFAXIS id="y" uniqueid="0x0">
       <EMBEDDEDDATA mmedelementsizebits="8" mmedmajorstridebits="-32" mmedminorstridebits="0" />
       <indexcount>35</indexcount>
-      <embedinfo type="3" linkobjid="0x0002" />
+      <embedinfo type="3" linkobjid="0x2" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -394,12 +400,12 @@
     </XDFAXIS>
   </XDFTABLE>
   <XDFTABLE uniqueid="0x2021" flags="0x0">
-    <title>Ignition Gear 3-4 Cyl 1</title>
+    <title>Ignition Gear 3</title>
     <CATEGORYMEM index="0" category="3" />
     <XDFAXIS id="x" uniqueid="0x0">
       <EMBEDDEDDATA mmedelementsizebits="8" mmedmajorstridebits="-32" mmedminorstridebits="0" />
       <indexcount>25</indexcount>
-      <embedinfo type="3" linkobjid="0x0001" />
+      <embedinfo type="3" linkobjid="0x1" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -410,7 +416,7 @@
     <XDFAXIS id="y" uniqueid="0x0">
       <EMBEDDEDDATA mmedelementsizebits="8" mmedmajorstridebits="-32" mmedminorstridebits="0" />
       <indexcount>35</indexcount>
-      <embedinfo type="3" linkobjid="0x0002" />
+      <embedinfo type="3" linkobjid="0x2" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -430,12 +436,12 @@
     </XDFAXIS>
   </XDFTABLE>
   <XDFTABLE uniqueid="0x2022" flags="0x0">
-    <title>Ignition Gear 3-4 Cyl 2</title>
+    <title>Ignition Gear 4</title>
     <CATEGORYMEM index="0" category="3" />
     <XDFAXIS id="x" uniqueid="0x0">
       <EMBEDDEDDATA mmedelementsizebits="8" mmedmajorstridebits="-32" mmedminorstridebits="0" />
       <indexcount>25</indexcount>
-      <embedinfo type="3" linkobjid="0x0001" />
+      <embedinfo type="3" linkobjid="0x1" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -446,7 +452,7 @@
     <XDFAXIS id="y" uniqueid="0x0">
       <EMBEDDEDDATA mmedelementsizebits="8" mmedmajorstridebits="-32" mmedminorstridebits="0" />
       <indexcount>35</indexcount>
-      <embedinfo type="3" linkobjid="0x0002" />
+      <embedinfo type="3" linkobjid="0x2" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -466,12 +472,12 @@
     </XDFAXIS>
   </XDFTABLE>
   <XDFTABLE uniqueid="0x2031" flags="0x0">
-    <title>Ignition Gear 5-6 Cyl 1</title>
+    <title>Ignition Gear 5</title>
     <CATEGORYMEM index="0" category="3" />
     <XDFAXIS id="x" uniqueid="0x0">
       <EMBEDDEDDATA mmedelementsizebits="8" mmedmajorstridebits="-32" mmedminorstridebits="0" />
       <indexcount>25</indexcount>
-      <embedinfo type="3" linkobjid="0x0001" />
+      <embedinfo type="3" linkobjid="0x1" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -482,7 +488,7 @@
     <XDFAXIS id="y" uniqueid="0x0">
       <EMBEDDEDDATA mmedelementsizebits="8" mmedmajorstridebits="-32" mmedminorstridebits="0" />
       <indexcount>35</indexcount>
-      <embedinfo type="3" linkobjid="0x0002" />
+      <embedinfo type="3" linkobjid="0x2" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -502,12 +508,12 @@
     </XDFAXIS>
   </XDFTABLE>
   <XDFTABLE uniqueid="0x2032" flags="0x0">
-    <title>Ignition Gear 5-6 Cyl 2</title>
+    <title>Ignition Gear 6</title>
     <CATEGORYMEM index="0" category="3" />
     <XDFAXIS id="x" uniqueid="0x0">
       <EMBEDDEDDATA mmedelementsizebits="8" mmedmajorstridebits="-32" mmedminorstridebits="0" />
       <indexcount>25</indexcount>
-      <embedinfo type="3" linkobjid="0x0001" />
+      <embedinfo type="3" linkobjid="0x1" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -518,7 +524,7 @@
     <XDFAXIS id="y" uniqueid="0x0">
       <EMBEDDEDDATA mmedelementsizebits="8" mmedmajorstridebits="-32" mmedminorstridebits="0" />
       <indexcount>35</indexcount>
-      <embedinfo type="3" linkobjid="0x0002" />
+      <embedinfo type="3" linkobjid="0x2" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -559,7 +565,7 @@
       <indexcount>35</indexcount>
       <decimalpl>1</decimalpl>
       <outputtype>2</outputtype>
-      <embedinfo type="3" linkobjid="0x0002" />
+      <embedinfo type="3" linkobjid="0x2" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -600,7 +606,7 @@
       <indexcount>35</indexcount>
       <decimalpl>1</decimalpl>
       <outputtype>2</outputtype>
-      <embedinfo type="3" linkobjid="0x0002" />
+      <embedinfo type="3" linkobjid="0x2" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -641,7 +647,7 @@
       <indexcount>35</indexcount>
       <decimalpl>1</decimalpl>
       <outputtype>2</outputtype>
-      <embedinfo type="3" linkobjid="0x0002" />
+      <embedinfo type="3" linkobjid="0x2" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -682,7 +688,7 @@
       <indexcount>35</indexcount>
       <decimalpl>1</decimalpl>
       <outputtype>2</outputtype>
-      <embedinfo type="3" linkobjid="0x0002" />
+      <embedinfo type="3" linkobjid="0x2" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -723,7 +729,7 @@
       <indexcount>35</indexcount>
       <decimalpl>1</decimalpl>
       <outputtype>2</outputtype>
-      <embedinfo type="3" linkobjid="0x0002" />
+      <embedinfo type="3" linkobjid="0x2" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -764,7 +770,7 @@
       <indexcount>35</indexcount>
       <decimalpl>1</decimalpl>
       <outputtype>2</outputtype>
-      <embedinfo type="3" linkobjid="0x0002" />
+      <embedinfo type="3" linkobjid="0x2" />
       <datatype>0</datatype>
       <unittype>0</unittype>
       <DALINK index="0" />
@@ -783,7 +789,7 @@
       </MATH>
     </XDFAXIS>
   </XDFTABLE>
-  <XDFTABLE uniqueid="0x0100" flags="0x0">
+  <XDFTABLE uniqueid="0x100" flags="0x0">
     <title>RPM Limits</title>
     <CATEGORYMEM index="0" category="4" />
     <XDFAXIS id="x" uniqueid="0x0">
@@ -819,6 +825,45 @@
       <min>0.000000</min>
       <max>255.000000</max>
       <outputtype>2</outputtype>
+      <MATH equation="X">
+        <VAR id="X" />
+      </MATH>
+    </XDFAXIS>
+  </XDFTABLE>
+  <XDFTABLE uniqueid="0x7FFC" flags="0x0">
+    <title>Checksum</title>
+    <XDFAXIS id="x" uniqueid="0x0">
+      <EMBEDDEDDATA mmedelementsizebits="16" mmedmajorstridebits="-32" mmedminorstridebits="0" />
+      <indexcount>1</indexcount>
+      <decimalpl>1</decimalpl>
+      <outputtype>4</outputtype>
+      <datatype>0</datatype>
+      <unittype>0</unittype>
+      <DALINK index="0" />
+      <LABEL index="0" value="" />
+      <MATH equation="X">
+        <VAR id="X" />
+      </MATH>
+    </XDFAXIS>
+    <XDFAXIS id="y" uniqueid="0x0">
+      <EMBEDDEDDATA mmedelementsizebits="16" mmedmajorstridebits="-32" mmedminorstridebits="0" />
+      <indexcount>1</indexcount>
+      <decimalpl>1</decimalpl>
+      <outputtype>4</outputtype>
+      <datatype>0</datatype>
+      <unittype>0</unittype>
+      <DALINK index="0" />
+      <LABEL index="0" value="" />
+      <MATH equation="X">
+        <VAR id="X" />
+      </MATH>
+    </XDFAXIS>
+    <XDFAXIS id="z">
+      <EMBEDDEDDATA mmedaddress="0x3FFF8" mmedelementsizebits="8" mmedrowcount="1" mmedmajorstridebits="0" mmedminorstridebits="0" />
+      <decimalpl>1</decimalpl>
+      <min>0.000000</min>
+      <max>255.000000</max>
+      <outputtype>3</outputtype>
       <MATH equation="X">
         <VAR id="X" />
       </MATH>

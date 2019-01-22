@@ -5,6 +5,7 @@ from threading import Thread
 from pylibftdi import Driver, FtdiError, LibraryMissingError
 from pydispatch import dispatcher
 import wx
+import wx.dataview as dv
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 import EnhancedStatusBar as ESB
 from ecu import *
@@ -12,6 +13,7 @@ from motoamerica import *
 import hashlib
 import requests
 import platform
+from lxml import etree
 
 class USBMonitor(Thread):
 
@@ -1044,6 +1046,207 @@ class RestorePanel(wx.Panel):
 				self.cbbp.Show()
 			self.Layout()
 
+def get_table_info(t):
+	n = t.xpath("title")[0].text
+	a = int(t.xpath("XDFAXIS[@id='z']")[0].xpath("EMBEDDEDDATA")[0].get("mmedaddress"),16)
+	s = int(t.xpath("XDFAXIS[@id='z']")[0].xpath("EMBEDDEDDATA")[0].get("mmedelementsizebits"))
+	x = int(t.xpath("XDFAXIS[@id='x']")[0].xpath("indexcount")[0].text)
+	y = int(t.xpath("XDFAXIS[@id='y']")[0].xpath("indexcount")[0].text)
+	return n,a,s,x,y
+
+class Table(object):
+
+	def __init__(self, name, address, stride, cols, rows, parent):
+		self.name = name
+		self.address = address
+		self.stride = stride
+		self.cols = cols
+		self.rows = rows
+		self.parent = parent
+
+	def __repr__(self):
+		return 'Table: ' + self.name
+
+class Folder(object):
+
+	def __init__(self, id, label):
+		self.id = id
+		self.label = label
+		self.children = []
+
+	def __repr__(self):
+		return 'Folder: ' + self.label
+
+class XDFModel(dv.PyDataViewModel):
+
+	def __init__(self, parent, xdf):
+		dv.PyDataViewModel.__init__(self)
+		self.parent = parent
+		self.foldericon = wx.Icon(os.path.join(self.parent.parent.basepath, "images/folder.png"), wx.BITMAP_TYPE_ANY)
+		self.tableicon = wx.Icon(os.path.join(self.parent.parent.basepath, "images/table.png"), wx.BITMAP_TYPE_ANY)
+		categories = {}
+		for c in xdf.xpath('/XDFFORMAT/XDFHEADER/CATEGORY'):
+			categories[c.get("index")] = c.get("name")
+		data = {"000":Folder("000","")}
+		for t in xdf.xpath('/XDFFORMAT/XDFTABLE'):
+			parent = ["0","0","0"]
+			c0 = t.xpath('CATEGORYMEM[@index=0]')
+			if len(c0) > 0:
+				parent[0] = c0[0].get("category")
+				p = "".join(parent)
+				if not p in data:
+					data[p] = Folder(p,categories[hex(int(parent[0])-1)])
+			c1 = t.xpath('CATEGORYMEM[@index=1]')
+			if len(c1) > 0:
+				parent[1] = c1[0].get("category")
+				p = "".join(parent)
+				if not p in data:
+					data[p] = Folder(p,categories[hex(int(parent[1])-1)])
+				pp = ["0","0","0"]
+				pp[0] = parent[0]
+				pp = "".join(pp)
+				if not data[p] in data[pp].children:
+					data[pp].children.append(data[p])
+			c2 = t.xpath('CATEGORYMEM[@index=2]')
+			if len(c2) > 0:
+				parent[2] = c2[0].get("category")
+				p = "".join(parent)
+				if not p in data:
+					data[p] = Folder(p,categories[hex(int(parent[2])-1)])
+				pp = ["0","0","0"]
+				pp[0] = parent[0]
+				pp[1] = parent[1]
+				pp = "".join(pp)
+				if not data[p] in data[pp].children:
+					data[pp].children.append(data[p])
+			pp = "".join(parent)
+			n,a,s,x,y = get_table_info(t)
+			data[pp].children.append(Table(n,a,s,x,y,pp))
+		self.data = data
+		self.UseWeakRefs(True)
+
+	def GetColumnCount(self):
+		return 1
+
+	def GetColumnType(self, col):
+		mapper = {0: 'string'}
+		return mapper[col]
+
+	def GetChildren(self, parent, children):
+		if not parent:
+			childs = []
+			for c in self.data.keys():
+				if c[0] != "0":
+					if c[1] == "0" and c[2] == "0":
+						childs.append(c)
+						children.append(self.ObjectToItem(self.data[c]))
+				elif c == "000":
+					for c in self.data[c].children:
+						childs.append(c)
+						children.append(self.ObjectToItem(c))
+			return len(childs)
+		else:
+			node = self.ItemToObject(parent)
+			childs = []
+			for c in node.children:
+				childs.append(c)
+				children.append(self.ObjectToItem(c))
+			return len(childs)
+		return 0
+
+	def IsContainer(self, item):
+		if not item:
+			return True
+		node = self.ItemToObject(item)
+		if isinstance(node, Folder):
+			return True
+		return False
+
+	def GetValue(self, item, col):
+		node = self.ItemToObject(item)
+		if isinstance(node, Folder):
+			return dv.DataViewIconText(text=node.label, icon=self.foldericon)
+		elif isinstance(node, Table):
+			return dv.DataViewIconText(text=node.name, icon=self.tableicon)
+
+	def GetParent(self, item):
+		if not item:
+			return dv.NullDataViewItem
+		node = self.ItemToObject(item)
+		if isinstance(node, Folder):
+			if node.id[0] != "0":
+				if node.id[1] == "0" and node.id[2] == "0":
+					return dv.NullDataViewItem
+				elif node.id[1] != "0" and node.id[2] == "0":
+					pp = ["0","0","0"]
+					pp[0] = node.id[0]
+					pp = "".join(pp)
+					return self.ObjectToItem(self.data[pp])
+				elif node.id[1] != "0" and node.id[2] != "0":
+					pp = ["0","0","0"]
+					pp[0] = node.id[0]
+					pp[1] = node.id[1]
+					pp = "".join(pp)
+					return self.ObjectToItem(self.data[pp])
+		elif isinstance(node, Table):
+			if node.parent == "000":
+				return dv.NullDataViewItem
+			else:
+				return self.ObjectToItem(self.data[node.parent])
+
+	def HasDefaultCompare(self):
+		return False
+
+	def Compare(self, item1, item2, column, ascending):
+		ascending = 1 if ascending else -1
+		item1 = self.ItemToObject(item1)
+		item2 = self.ItemToObject(item2)
+		if isinstance(item1, Folder):
+			if isinstance(item2, Folder):
+				ret = 0
+			elif isinstance(item2, Table):
+				ret = -1
+		elif isinstance(item1, Table):
+			if isinstance(item2, Folder):
+				ret = 1
+			elif isinstance(item2, Table):
+				ret = 0
+		return ret * ascending
+
+
+class TunePanel(wx.Panel):
+
+	def __init__(self, parent):
+		self.parent = parent
+		wx.Panel.__init__(self, parent)
+
+		self.splitter = wx.SplitterWindow(self)
+
+		self.ptreep = wx.Panel(self.splitter)
+		ptreesizer = wx.BoxSizer(wx.VERTICAL)
+		self.ptree = wx.dataview.DataViewCtrl(self.ptreep)
+		xdf = None
+		fnxdf = os.path.abspath(os.path.expanduser("xdfs/CBR500R_MGZ_2013-2016/38770-MGZ.xdf"))
+		if os.path.isfile(fnxdf):
+			with open(fnxdf, "r") as fxdf:
+				xdf = etree.fromstring(fxdf.read())
+		self.ptreemodel = XDFModel(self, xdf)
+		self.ptree.AssociateModel(self.ptreemodel)
+		c0 = self.ptree.AppendIconTextColumn("Parameter Tree",0, width=100)
+		c0.SetSortOrder(True)
+		self.ptreemodel.Resort()
+		ptreesizer.Add(self.ptree, 1, wx.EXPAND)
+		self.ptreep.SetSizer(ptreesizer)
+
+		self.editorp = wx.Panel(self.splitter)
+
+		self.splitter.SplitVertically(self.ptreep, self.editorp)
+		self.splitter.SetMinimumPaneSize(300)
+
+		sizer = wx.BoxSizer(wx.VERTICAL)
+		sizer.Add(self.splitter, 1, wx.EXPAND)
+		self.SetSizer(sizer)
+
 class HondaECU_GUI(wx.Frame):
 
 	def __init__(self, args, version, known_bins):
@@ -1070,8 +1273,12 @@ class HondaECU_GUI(wx.Frame):
 
 		# Setup GUI
 		wx.Frame.__init__(self, None, title=title)
-		self.SetSize(800,640)
-		self.SetMinSize(wx.Size(800,640))
+		if self.args.motoamerica:
+			self.SetSize(1024,768)
+			self.SetMinSize(wx.Size(1024,768))
+		else:
+			self.SetSize(800,640)
+			self.SetMinSize(wx.Size(800,640))
 		ib = wx.IconBundle()
 		ib.AddIcon(ip)
 		self.SetIcons(ib)
@@ -1110,14 +1317,14 @@ class HondaECU_GUI(wx.Frame):
 			wx.Image(os.path.join(self.basepath, "images/bullet_red.png"), wx.BITMAP_TYPE_ANY).ConvertToBitmap()
 		]
 
-		self.panel = wx.Panel(self)
+		self.utilpanel = wx.Panel(self)
 
-		devicebox = wx.StaticBoxSizer(wx.HORIZONTAL, self.panel, "FTDI Devices")
-		self.m_devices = wx.Choice(self.panel, wx.ID_ANY, size=(-1,32))
+		devicebox = wx.StaticBoxSizer(wx.HORIZONTAL, self.utilpanel, "FTDI Devices")
+		self.m_devices = wx.Choice(self.utilpanel, wx.ID_ANY, size=(-1,32))
 		devicebox.Add(self.m_devices, 1, wx.EXPAND | wx.ALL, 5)
 
-		ecubox = wx.StaticBoxSizer(wx.HORIZONTAL, self.panel, "Connected ECU")
-		self.m_ecu = wx.StaticText(self.panel, style=wx.ALIGN_CENTRE_HORIZONTAL)
+		ecubox = wx.StaticBoxSizer(wx.HORIZONTAL, self.utilpanel, "Connected ECU")
+		self.m_ecu = wx.StaticText(self.utilpanel, style=wx.ALIGN_CENTRE_HORIZONTAL)
 		font = self.m_ecu.GetFont()
 		font.SetWeight(wx.BOLD)
 		font.SetPointSize(20)
@@ -1125,7 +1332,7 @@ class HondaECU_GUI(wx.Frame):
 		ecubox.Add(self.m_ecu, 1, wx.EXPAND | wx.ALL, 5)
 
 		self.flashdlg = FlashDialog(self)
-		self.notebook = wx.Notebook(self.panel, wx.ID_ANY)
+		self.notebook = wx.Notebook(self.utilpanel, wx.ID_ANY)
 		self.flashp = FlashPanel(self)
 		self.datap = DataPanel(self)
 		self.errorp = ErrorPanel(self)
@@ -1134,37 +1341,39 @@ class HondaECU_GUI(wx.Frame):
 		self.notebook.AddPage(self.datap, "Data Logging")
 		self.notebook.AddPage(self.errorp, "Diagnostic Trouble Codes")
 
-		self.statusbar = ESB.EnhancedStatusBar(self, -1)
-		self.SetStatusBar(self.statusbar)
-		self.statusbar.SetSize((-1, 28))
-		self.statusicon = wx.StaticBitmap(self.statusbar)
-		self.statusicon.SetBitmap(self.statusicons[0])
-		self.ecmidl = wx.StaticText(self.statusbar)
-		self.flashcountl = wx.StaticText(self.statusbar)
-		self.dtccountl = wx.StaticText(self.statusbar)
-		self.statusbar.SetFieldsCount(4)
-		self.statusbar.SetStatusWidths([32, 170, 130, 110])
-		if self.args.motoamerica:
-			self.notebook.AddPage(self.restorep, "Restore Factory Image")
-			self.flashp.Hide()
-			self.datap.Hide()
-			self.errorp.Hide()
-			self.dtccountl.Hide()
-			self.statusbar.SetStatusStyles([wx.SB_SUNKEN, wx.SB_SUNKEN, wx.SB_SUNKEN, wx.SB_FLAT])
+		self.tunepanel = TunePanel(self)
+
+		if not self.args.motoamerica:
+			self.tunepanel.Hide()
+			self.statusbar = ESB.EnhancedStatusBar(self, -1)
+			self.SetStatusBar(self.statusbar)
+			self.statusbar.SetSize((-1, 28))
+			self.statusicon = wx.StaticBitmap(self.statusbar)
+			self.statusicon.SetBitmap(self.statusicons[0])
+			self.ecmidl = wx.StaticText(self.statusbar)
+			self.flashcountl = wx.StaticText(self.statusbar)
+			self.dtccountl = wx.StaticText(self.statusbar)
+			self.statusbar.SetFieldsCount(4)
+			self.statusbar.SetStatusWidths([32, 170, 130, 110])
+			self.statusbar.AddWidget(self.statusicon, pos=0)
+			self.statusbar.AddWidget(self.ecmidl, pos=1, horizontalalignment=ESB.ESB_ALIGN_LEFT)
+			self.statusbar.AddWidget(self.flashcountl, pos=2, horizontalalignment=ESB.ESB_ALIGN_LEFT)
+			self.statusbar.AddWidget(self.dtccountl, pos=3, horizontalalignment=ESB.ESB_ALIGN_LEFT)
 		else:
-			self.statusbar.SetStatusStyles([wx.SB_SUNKEN, wx.SB_SUNKEN, wx.SB_SUNKEN, wx.SB_SUNKEN])
-		self.statusbar.AddWidget(self.statusicon, pos=0)
-		self.statusbar.AddWidget(self.ecmidl, pos=1, horizontalalignment=ESB.ESB_ALIGN_LEFT)
-		self.statusbar.AddWidget(self.flashcountl, pos=2, horizontalalignment=ESB.ESB_ALIGN_LEFT)
-		self.statusbar.AddWidget(self.dtccountl, pos=3, horizontalalignment=ESB.ESB_ALIGN_LEFT)
+			self.utilpanel.Hide()
+
+		utilbox = wx.BoxSizer(wx.VERTICAL)
+		utilbox.Add(devicebox, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+		utilbox.AddSpacer(5)
+		utilbox.Add(ecubox, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+		utilbox.Add(self.notebook, 1, wx.EXPAND | wx.ALL, 10)
+		self.utilpanel.SetSizer(utilbox)
+		self.utilpanel.Layout()
 
 		mainbox = wx.BoxSizer(wx.VERTICAL)
-		mainbox.Add(devicebox, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
-		mainbox.AddSpacer(5)
-		mainbox.Add(ecubox, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
-		mainbox.Add(self.notebook, 1, wx.EXPAND | wx.ALL, 10)
-		self.panel.SetSizer(mainbox)
-		self.panel.Layout()
+		mainbox.Add(self.utilpanel, 1, wx.EXPAND)
+		mainbox.Add(self.tunepanel, 1, wx.EXPAND)
+		self.SetSizer(mainbox)
 
 		# Bind event handlers
 		self.Bind(wx.EVT_CLOSE, self.OnClose)
@@ -1246,7 +1455,8 @@ class HondaECU_GUI(wx.Frame):
 				dispatcher.send(signal="HondaECU.device", sender=self, action="activate", vendor=vendor, product=product, serial=serial)
 				dirty = True
 		else:
-			self.__clear_widgets()
+			if not self.args.motoamerica:
+				self.__clear_widgets()
 		if dirty:
 			self.m_devices.Clear()
 			for serial in self.devices:
@@ -1264,23 +1474,26 @@ class HondaECU_GUI(wx.Frame):
 
 	def KlineWorkerHandler(self, info, value):
 		if info == "state":
-			self.__clear_widgets()
-			if value[0] in [0,12]:
-				self.statusicon.SetBitmap(self.statusicons[0])
-			elif value[0] in [1]:
-				self.statusicon.SetBitmap(self.statusicons[1])
-			elif value[0] in [10]:
-				self.statusicon.SetBitmap(self.statusicons[3])
-			else:
-				self.ecmidl.SetLabel("   ECM ID: -- -- -- -- --")
-				self.flashcountl.SetLabel("   Flash Count: --")
-				self.dtccountl.SetLabel("   DTC Count: --")
-				self.statusicon.SetBitmap(self.statusicons[2])
-			self.statusicon.SetToolTip(wx.ToolTip("state: %s" % (value[1])))
-			self.statusicon.Show(True)
-			self.statusbar.OnSize(None)
+			if not self.args.motoamerica:
+				self.__clear_widgets()
+				if value[0] in [0,12]:
+					self.statusicon.SetBitmap(self.statusicons[0])
+				elif value[0] in [1]:
+					self.statusicon.SetBitmap(self.statusicons[1])
+				elif value[0] in [10]:
+					self.statusicon.SetBitmap(self.statusicons[3])
+				else:
+					self.ecmidl.SetLabel("   ECM ID: -- -- -- -- --")
+					self.flashcountl.SetLabel("   Flash Count: --")
+					self.dtccountl.SetLabel("   DTC Count: --")
+					self.statusicon.SetBitmap(self.statusicons[2])
+				self.statusicon.SetToolTip(wx.ToolTip("state: %s" % (value[1])))
+				self.statusicon.Show(True)
+				self.statusbar.OnSize(None)
 		elif info == "ecmid":
-			self.ecmidl.SetLabel("   ECM ID: %s" % " ".join(["%02x" % i for i in value]))
+			if not self.args.motoamerica:
+				self.ecmidl.SetLabel("   ECM ID: %s" % " ".join(["%02x" % i for i in value]))
+				self.statusbar.OnSize(None)
 			if value in ECM_IDs:
 				self.m_ecu.SetLabel("%s (%s) - %s" % (ECM_IDs[value]["model"],ECM_IDs[value]["year"],ECM_IDs[value]["pn"]))
 				if "checksum" in ECM_IDs[value]:
@@ -1289,23 +1502,25 @@ class HondaECU_GUI(wx.Frame):
 					self.offset.checksum.SetValue(ECM_IDs[value]["offset"])
 			else:
 				self.m_ecu.SetLabel("Unknown")
-			self.panel.Layout()
-			self.statusbar.OnSize(None)
+			self.utilpanel.Layout()
 		elif info == "flashcount":
-			self.flashcountl.SetLabel("   Flash Count: %d" % value)
-			self.statusbar.OnSize(None)
+			if not self.args.motoamerica:
+				self.flashcountl.SetLabel("   Flash Count: %d" % value)
+				self.statusbar.OnSize(None)
 		elif info == "dtccount":
-			self.dtccountl.SetLabel("   DTC Count: %d" % value)
+			if not self.args.motoamerica:
+				self.dtccountl.SetLabel("   DTC Count: %d" % value)
+				self.statusbar.OnSize(None)
 			if value > 0:
 				self.errorp.resetbutton.Enable(True)
 			else:
 				self.errorp.resetbutton.Enable(False)
 				self.errorp.errorlist.DeleteAllItems()
-			self.statusbar.OnSize(None)
 		elif info == "dtc":
-			self.errorp.errorlist.DeleteAllItems()
+			if not self.args.motoamerica:
+				self.errorp.errorlist.DeleteAllItems()
+				self.errorp.Layout()
 			for code in value[hex(0x74)]:
 				self.errorp.errorlist.Append([code, DTC[code] if code in DTC else "Unknown", "current"])
 			for code in value[hex(0x73)]:
 				self.errorp.errorlist.Append([code, DTC[code] if code in DTC else "Unknown", "past"])
-			self.errorp.Layout()
