@@ -5,6 +5,7 @@ from threading import Thread
 from pylibftdi import Driver, FtdiError, LibraryMissingError
 from pydispatch import dispatcher
 import wx
+import wx.aui
 import wx.dataview as dv
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 import EnhancedStatusBar as ESB
@@ -1220,11 +1221,11 @@ class TunePanel(wx.Panel):
 		self.parent = parent
 		wx.Panel.__init__(self, parent)
 
-		self.splitter = wx.SplitterWindow(self)
+		self.mgr = wx.aui.AuiManager(self)
 
-		self.ptreep = wx.Panel(self.splitter)
+		self.ptreep = wx.Panel(self)
 		ptreesizer = wx.BoxSizer(wx.VERTICAL)
-		self.ptree = wx.dataview.DataViewCtrl(self.ptreep)
+		self.ptree = wx.dataview.DataViewCtrl(self.ptreep, style=dv.DV_NO_HEADER)
 		xdf = None
 		fnxdf = os.path.abspath(os.path.expanduser("xdfs/CBR500R_MGZ_2013-2016/38770-MGZ.xdf"))
 		if os.path.isfile(fnxdf):
@@ -1238,14 +1239,13 @@ class TunePanel(wx.Panel):
 		ptreesizer.Add(self.ptree, 1, wx.EXPAND)
 		self.ptreep.SetSizer(ptreesizer)
 
-		self.editorp = wx.Panel(self.splitter)
-
-		self.splitter.SplitVertically(self.ptreep, self.editorp)
-		self.splitter.SetMinimumPaneSize(300)
-
-		sizer = wx.BoxSizer(wx.VERTICAL)
-		sizer.Add(self.splitter, 1, wx.EXPAND)
-		self.SetSizer(sizer)
+		info1 = wx.aui.AuiPaneInfo().Left()
+		info1.MinSize(wx.Size(200,200))
+		info1.CloseButton(False)
+		info1.Floatable(False)
+		info1.Caption("Parameter Tree")
+		self.mgr.AddPane(self.ptreep, info1)
+		self.mgr.Update()
 
 class HondaECU_GUI(wx.Frame):
 
