@@ -1055,19 +1055,37 @@ def get_table_info(t):
 	n = t.xpath("title")[0].text
 	a = int(t.xpath("XDFAXIS[@id='z']")[0].xpath("EMBEDDEDDATA")[0].get("mmedaddress"),16)
 	s = int(t.xpath("XDFAXIS[@id='z']")[0].xpath("EMBEDDEDDATA")[0].get("mmedelementsizebits"))
-	x = int(t.xpath("XDFAXIS[@id='x']")[0].xpath("indexcount")[0].text)
-	y = int(t.xpath("XDFAXIS[@id='y']")[0].xpath("indexcount")[0].text)
-	return n,a,s,x,y
+	xindexcount = int(t.xpath("XDFAXIS[@id='x']")[0].xpath("indexcount")[0].text)
+	yindexcount = int(t.xpath("XDFAXIS[@id='y']")[0].xpath("indexcount")[0].text)
+	e = t.xpath("XDFAXIS[@id='x']")[0].xpath("embedinfo")
+	if len(e) > 0:
+		xtype = int(e[0].get("type"))
+		xlinkobjid = e[0].get("linkobjid")
+	else:
+		xtype = None
+		xlinkobjid = None
+	e = t.xpath("XDFAXIS[@id='y']")[0].xpath("embedinfo")
+	if len(e) > 0:
+		ytype = int(e[0].get("type"))
+		ylinkobjid = e[0].get("linkobjid")
+	else:
+		ytype = None
+		ylinkobjid = None
+	axisinfo = {
+		'x': {'indexcount': xindexcount, 'type': xtype, 'linkobjid': xlinkobjid},
+		'y': {'indexcount': yindexcount, 'type': ytype, 'linkobjid': ylinkobjid}
+	}
+	return n,a,s,axisinfo
 
 class Table(object):
 
-	def __init__(self, name, address, stride, cols, rows, parent):
+	def __init__(self, name, address, stride, axisinfo, parent, uniqueid=None):
 		self.name = name
 		self.address = address
 		self.stride = stride
-		self.cols = cols
-		self.rows = rows
+		self.axisinfo = axisinfo
 		self.parent = parent
+		self.uniqueid = uniqueid
 
 	def __repr__(self):
 		return 'Table: ' + self.name
@@ -1092,42 +1110,44 @@ class XDFModel(dv.PyDataViewModel):
 		categories = {}
 		for c in xdf.xpath('/XDFFORMAT/XDFHEADER/CATEGORY'):
 			categories[c.get("index")] = c.get("name")
-		data = {"0.0.0":Folder("0.0.0","")}
+		self.uids = {}
+		self.data = {"0.0.0":Folder("0.0.0","")}
 		for t in xdf.xpath('/XDFFORMAT/XDFTABLE'):
+			uid = t.get("uniqueid")
 			parent = ["0","0","0"]
 			c0 = t.xpath('CATEGORYMEM[@index=0]')
 			if len(c0) > 0:
 				parent[0] = c0[0].get("category")
 				p = ".".join(parent)
-				if not p in data:
-					data[p] = Folder(p,categories["0x%X" % (int(parent[0])-1)])
+				if not p in self.data:
+					self.data[p] = Folder(p,categories["0x%X" % (int(parent[0])-1)])
 			c1 = t.xpath('CATEGORYMEM[@index=1]')
 			if len(c1) > 0:
 				parent[1] = c1[0].get("category")
 				p = ".".join(parent)
-				if not p in data:
-					data[p] = Folder(p,categories["0x%X" % (int(parent[1])-1)])
+				if not p in self.data:
+					self.data[p] = Folder(p,categories["0x%X" % (int(parent[1])-1)])
 				pp = ["0","0","0"]
 				pp[0] = parent[0]
 				pp = ".".join(pp)
-				if not data[p] in data[pp].children:
-					data[pp].children.append(data[p])
+				if not self.data[p] in self.data[pp].children:
+					self.data[pp].children.append(self.data[p])
 			c2 = t.xpath('CATEGORYMEM[@index=2]')
 			if len(c2) > 0:
 				parent[2] = c2[0].get("category")
 				p = ".".join(parent)
-				if not p in data:
-					data[p] = Folder(p,categories["0x%X" % (int(parent[2])-1)])
+				if not p in self.data:
+					self.data[p] = Folder(p,categories["0x%X" % (int(parent[2])-1)])
 				pp = ["0","0","0"]
 				pp[0] = parent[0]
 				pp[1] = parent[1]
 				pp = ".".join(pp)
-				if not data[p] in data[pp].children:
-					data[pp].children.append(data[p])
+				if not self.data[p] in self.data[pp].children:
+					self.data[pp].children.append(self.data[p])
 			pp = ".".join(parent)
-			n,a,s,x,y = get_table_info(t)
-			data[pp].children.append(Table(n,a,s,x,y,pp))
-		self.data = data
+			n,a,s,i = get_table_info(t)
+			self.data[pp].children.append(Table(n,a,s,i,pp))
+			self.uids[uid] = self.data[pp].children[-1]
 		self.UseWeakRefs(True)
 
 	def GetColumnCount(self):
@@ -1222,10 +1242,37 @@ class XDFModel(dv.PyDataViewModel):
 
 class XDFGridTable(wx.grid.GridTableBase):
 
-	def __init__(self, byts, address, rows, cols):
-		ncells = rows * cols
-		self.data = np.array(struct.unpack_from(">%dH" % ncells, byts, offset=address)).reshape(rows, cols)
+	def __init__(self, uids, byts, address, stride, axisinfo):
 		wx.grid.GridTableBase.__init__(self)
+		self.axisinfo = axisinfo
+		rows = self.axisinfo['y']['indexcount']
+		cols = self.axisinfo['x']['indexcount']
+		s = "B"
+		if stride == 16:
+			s = "H"
+		self.data = np.array(struct.unpack_from(">%d%s" % (rows*cols, s), byts, offset=address)).reshape(rows, cols)
+		self.cols = None
+		if "linkobjid" in self.axisinfo["x"]:
+			x = self.axisinfo["x"]["linkobjid"]
+			if not x is None:
+				xx = uids[x]
+				sx = "B"
+				if xx.stride == 16:
+					sx = "H"
+				xxrows = xx.axisinfo['y']['indexcount']
+				xxcols = xx.axisinfo['x']['indexcount']
+				self.cols = np.array(struct.unpack_from(">%d%s" % (xxrows*xxcols, sx), byts, offset=xx.address)).reshape(xxrows, xxcols)
+		self.rows = None
+		if "linkobjid" in self.axisinfo["y"]:
+			y = self.axisinfo["y"]["linkobjid"]
+			if not y is None:
+				yy = uids[y]
+				sy = "B"
+				if yy.stride == 16:
+					sy = "H"
+				yyrows = yy.axisinfo['y']['indexcount']
+				yycols = yy.axisinfo['x']['indexcount']
+				self.rows = np.array(struct.unpack_from(">%d%s" % (yyrows*yycols, sy), byts, offset=yy.address)).reshape(yyrows, yycols)
 
 	def GetNumberRows(self):
 		return self.data.shape[0]
@@ -1241,6 +1288,16 @@ class XDFGridTable(wx.grid.GridTableBase):
 
 	def GetTypeName(self, row, col):
 		return wx.grid.GRID_VALUE_NUMBER
+
+	def GetColLabelValue(self, col):
+		if not self.cols is None:
+			return str(self.cols[col][0])
+		return str(col)
+
+	def GetRowLabelValue(self, row):
+		if not self.rows is None:
+			return str(self.rows[row][0])
+		return str(row)
 
 class TunePanel(wx.Panel):
 
@@ -1295,13 +1352,13 @@ class TunePanel(wx.Panel):
 		if isinstance(node, Table):
 			p = wx.Panel(self)
 			g = gridlib.Grid(p)
-			gt = XDFGridTable(self.byts, node.address, node.rows, node.cols)
+			gt = XDFGridTable(self.ptreemodel.uids, self.byts, node.address, node.stride, node.axisinfo)
 			g.SetTable(gt, True)
 			g.AutoSize()
 			sizer = wx.BoxSizer(wx.VERTICAL)
 			sizer.Add(g, 1, wx.EXPAND)
 			p.SetSizer(sizer)
-			self.nb.AddPage(p, node.name)
+			self.nb.AddPage(p, node.name, select=True)
 
 class HondaECU_GUI(wx.Frame):
 
