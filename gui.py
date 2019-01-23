@@ -1413,6 +1413,7 @@ class HondaECU_GUI(wx.Frame):
 		self.run = False
 		self.usbmonitor.join()
 		self.klineworker.join()
+		self.tunepanel.mgr.UnInit()
 		for w in wx.GetTopLevelWindows():
 			w.Destroy()
 
