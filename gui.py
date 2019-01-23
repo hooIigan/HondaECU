@@ -1223,16 +1223,17 @@ class TunePanel(wx.Panel):
 		self.parent = parent
 		wx.Panel.__init__(self, parent)
 
-		self.mgr = wx.aui.AuiManager(self)
-
-		self.ptreep = wx.Panel(self)
-		ptreesizer = wx.BoxSizer(wx.VERTICAL)
-		self.ptree = wx.dataview.DataViewCtrl(self.ptreep, style=dv.DV_NO_HEADER)
 		xdf = None
 		fnxdf = os.path.abspath(os.path.expanduser("xdfs/CBR500R_MGZ_2013-2016/38770-MGZ.xdf"))
 		if os.path.isfile(fnxdf):
 			with open(fnxdf, "r") as fxdf:
 				xdf = etree.fromstring(fxdf.read())
+
+		self.mgr = wx.aui.AuiManager(self)
+
+		self.ptreep = wx.Panel(self)
+		ptreesizer = wx.BoxSizer(wx.VERTICAL)
+		self.ptree = wx.dataview.DataViewCtrl(self.ptreep, style=dv.DV_NO_HEADER)
 		self.ptreemodel = XDFModel(self, xdf)
 		self.ptree.AssociateModel(self.ptreemodel)
 		c0 = self.ptree.AppendIconTextColumn("Parameter Tree",0, width=100)
@@ -1240,14 +1241,28 @@ class TunePanel(wx.Panel):
 		self.ptreemodel.Resort()
 		ptreesizer.Add(self.ptree, 1, wx.EXPAND)
 		self.ptreep.SetSizer(ptreesizer)
-
 		info1 = wx.aui.AuiPaneInfo().Left()
 		info1.MinSize(wx.Size(200,200))
-		info1.CloseButton(False)
-		info1.Floatable(False)
 		info1.Caption("Parameter Tree")
 		self.mgr.AddPane(self.ptreep, info1)
+
+		self.nbp = wx.Panel(self)
+		self.nb = wx.aui.AuiNotebook(self.nbp, style=wx.aui.AUI_NB_DEFAULT_STYLE|wx.aui.AUI_NB_WINDOWLIST_BUTTON|wx.aui.AUI_NB_TAB_FIXED_WIDTH)
+		sizer = wx.BoxSizer(wx.VERTICAL)
+		sizer.Add(self.nb, 1, wx.EXPAND)
+		self.nbp.SetSizer(sizer)
+		info2 = wx.aui.AuiPaneInfo().CenterPane()
+		self.mgr.AddPane(self.nbp, info2)
+
 		self.mgr.Update()
+
+		self.Bind(dv.EVT_DATAVIEW_ITEM_ACTIVATED, self.TableSelectedHandler)
+
+	def TableSelectedHandler(self, event):
+		node = self.ptreemodel.ItemToObject(event.GetItem())
+		if isinstance(node, Table):
+			p = wx.Panel(self)
+			self.nb.AddPage(p, node.name)
 
 class HondaECU_GUI(wx.Frame):
 
@@ -1290,10 +1305,14 @@ class HondaECU_GUI(wx.Frame):
 		debugItem = wx.MenuItem(fileMenu, wx.ID_ANY, '&Debug output\tCtrl+D', kind=wx.ITEM_CHECK)
 		quitItem = wx.MenuItem(fileMenu, wx.ID_EXIT, '&Quit\tCtrl+Q')
 		self.Bind(wx.EVT_MENU, self.OnDebug, debugItem)
-		fileMenu.Append(debugItem)
+		if not self.args.motoamerica:
+			fileMenu.Append(debugItem)
 		self.Bind(wx.EVT_MENU, self.OnClose, quitItem)
 		fileMenu.Append(quitItem)
 		self.menubar.Append(fileMenu, '&File')
+		viewMenu = wx.Menu()
+		if self.args.motoamerica:
+			self.menubar.Append(viewMenu, '&View')
 		helpMenu = wx.Menu()
 		if platform.system() == "Windows":
 			driverItem = wx.MenuItem(helpMenu, wx.ID_ANY, 'libusbK driver (Zadig)')
@@ -1301,15 +1320,15 @@ class HondaECU_GUI(wx.Frame):
 			self.Bind(wx.EVT_MENU, self.OnDriver, driverItem)
 		checksumItem = wx.MenuItem(helpMenu, wx.ID_ANY, 'Checksum Info')
 		self.Bind(wx.EVT_MENU, self.OnChecksums, checksumItem)
-		helpMenu.Append(checksumItem)
-		helpMenu.AppendSeparator()
+		if not self.args.motoamerica:
+			helpMenu.Append(checksumItem)
+			helpMenu.AppendSeparator()
+			debugItem.Check(self.args.debug)
 		aboutItem = wx.MenuItem(helpMenu, wx.ID_ANY, 'About')
 		self.Bind(wx.EVT_MENU, self.OnAbout, aboutItem)
 		helpMenu.Append(aboutItem)
 		self.menubar.Append(helpMenu, '&Help')
 		self.SetMenuBar(self.menubar)
-		debugItem.Check(self.args.debug)
-
 		wx.ToolTip.Enable(True)
 
 		self.statusicons = [
