@@ -1088,39 +1088,39 @@ class XDFModel(dv.PyDataViewModel):
 		categories = {}
 		for c in xdf.xpath('/XDFFORMAT/XDFHEADER/CATEGORY'):
 			categories[c.get("index")] = c.get("name")
-		data = {"000":Folder("000","")}
+		data = {"0.0.0":Folder("0.0.0","")}
 		for t in xdf.xpath('/XDFFORMAT/XDFTABLE'):
 			parent = ["0","0","0"]
 			c0 = t.xpath('CATEGORYMEM[@index=0]')
 			if len(c0) > 0:
 				parent[0] = c0[0].get("category")
-				p = "".join(parent)
+				p = ".".join(parent)
 				if not p in data:
-					data[p] = Folder(p,categories[hex(int(parent[0])-1)])
+					data[p] = Folder(p,categories["0x%X" % (int(parent[0])-1)])
 			c1 = t.xpath('CATEGORYMEM[@index=1]')
 			if len(c1) > 0:
 				parent[1] = c1[0].get("category")
-				p = "".join(parent)
+				p = ".".join(parent)
 				if not p in data:
-					data[p] = Folder(p,categories[hex(int(parent[1])-1)])
+					data[p] = Folder(p,categories["0x%X" % (int(parent[1])-1)])
 				pp = ["0","0","0"]
 				pp[0] = parent[0]
-				pp = "".join(pp)
+				pp = ".".join(pp)
 				if not data[p] in data[pp].children:
 					data[pp].children.append(data[p])
 			c2 = t.xpath('CATEGORYMEM[@index=2]')
 			if len(c2) > 0:
 				parent[2] = c2[0].get("category")
-				p = "".join(parent)
+				p = ".".join(parent)
 				if not p in data:
-					data[p] = Folder(p,categories[hex(int(parent[2])-1)])
+					data[p] = Folder(p,categories["0x%X" % (int(parent[2])-1)])
 				pp = ["0","0","0"]
 				pp[0] = parent[0]
 				pp[1] = parent[1]
-				pp = "".join(pp)
+				pp = ".".join(pp)
 				if not data[p] in data[pp].children:
 					data[pp].children.append(data[p])
-			pp = "".join(parent)
+			pp = ".".join(parent)
 			n,a,s,x,y = get_table_info(t)
 			data[pp].children.append(Table(n,a,s,x,y,pp))
 		self.data = data
@@ -1137,11 +1137,12 @@ class XDFModel(dv.PyDataViewModel):
 		if not parent:
 			childs = []
 			for c in self.data.keys():
-				if c[0] != "0":
-					if c[1] == "0" and c[2] == "0":
+				c0,c1,c2 = c.split(".")
+				if c0 != "0":
+					if c1 == "0" and c2 == "0":
 						childs.append(c)
 						children.append(self.ObjectToItem(self.data[c]))
-				elif c == "000":
+				elif c == "0.0.0":
 					for c in self.data[c].children:
 						childs.append(c)
 						children.append(self.ObjectToItem(c))
@@ -1175,22 +1176,23 @@ class XDFModel(dv.PyDataViewModel):
 			return dv.NullDataViewItem
 		node = self.ItemToObject(item)
 		if isinstance(node, Folder):
-			if node.id[0] != "0":
-				if node.id[1] == "0" and node.id[2] == "0":
+			nid0,nid1,nid2 = node.id.split(".")
+			if nid0 != "0":
+				if nid1 == "0" and nid2 == "0":
 					return dv.NullDataViewItem
-				elif node.id[1] != "0" and node.id[2] == "0":
+				elif nid1 != "0" and nid2 == "0":
 					pp = ["0","0","0"]
-					pp[0] = node.id[0]
-					pp = "".join(pp)
+					pp[0] = nid0
+					pp = ".".join(pp)
 					return self.ObjectToItem(self.data[pp])
-				elif node.id[1] != "0" and node.id[2] != "0":
+				elif nid1 != "0" and nid2 != "0":
 					pp = ["0","0","0"]
-					pp[0] = node.id[0]
-					pp[1] = node.id[1]
-					pp = "".join(pp)
+					pp[0] = nid0
+					pp[1] = nid1
+					pp = ".".join(pp)
 					return self.ObjectToItem(self.data[pp])
 		elif isinstance(node, Table):
-			if node.parent == "000":
+			if node.parent == "0.0.0":
 				return dv.NullDataViewItem
 			else:
 				return self.ObjectToItem(self.data[node.parent])
