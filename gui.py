@@ -1,12 +1,15 @@
 import sys
 import os
 import time
+import struct
 from threading import Thread
 from pylibftdi import Driver, FtdiError, LibraryMissingError
 from pydispatch import dispatcher
 import wx
 import wx.aui
+import wx.lib.agw.aui.auibook
 import wx.dataview as dv
+import wx.grid as gridlib
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 import EnhancedStatusBar as ESB
 from ecu import *
@@ -15,6 +18,7 @@ import hashlib
 import requests
 import platform
 from lxml import etree
+import numpy as np
 
 class USBMonitor(Thread):
 
@@ -1216,12 +1220,39 @@ class XDFModel(dv.PyDataViewModel):
 				ret = 0
 		return ret * ascending
 
+class XDFGridTable(wx.grid.GridTableBase):
+
+	def __init__(self, byts, address, rows, cols):
+		ncells = rows * cols
+		self.data = np.array(struct.unpack_from(">%dH" % ncells, byts, offset=address)).reshape(rows, cols)
+		wx.grid.GridTableBase.__init__(self)
+
+	def GetNumberRows(self):
+		return self.data.shape[0]
+
+	def GetNumberCols(self):
+		return self.data.shape[1]
+
+	def IsEmptyCell(self, row, col):
+		return False
+
+	def GetValue(self, row, col):
+		return self.data[row][col]
+
+	def GetTypeName(self, row, col):
+		return wx.grid.GRID_VALUE_NUMBER
 
 class TunePanel(wx.Panel):
 
 	def __init__(self, parent):
 		self.parent = parent
 		wx.Panel.__init__(self, parent)
+
+		fnbin = os.path.abspath(os.path.expanduser("bins/CBR500R_MGZ_2013-2016/38770-MGZ-C02.bin"))
+		fbin = open(fnbin, "rb")
+		self.nbyts = os.path.getsize(fnbin)
+		self.byts = bytearray(fbin.read(self.nbyts))
+		fbin.close()
 
 		xdf = None
 		fnxdf = os.path.abspath(os.path.expanduser("xdfs/CBR500R_MGZ_2013-2016/38770-MGZ.xdf"))
@@ -1247,7 +1278,8 @@ class TunePanel(wx.Panel):
 		self.mgr.AddPane(self.ptreep, info1)
 
 		self.nbp = wx.Panel(self)
-		self.nb = wx.aui.AuiNotebook(self.nbp, style=wx.aui.AUI_NB_DEFAULT_STYLE|wx.aui.AUI_NB_WINDOWLIST_BUTTON|wx.aui.AUI_NB_TAB_FIXED_WIDTH)
+		self.nb = wx.lib.agw.aui.auibook.AuiNotebook(self.nbp)#, style=wx.aui.AUI_NB_DEFAULT_STYLE|wx.aui.AUI_NB_WINDOWLIST_BUTTON|wx.aui.AUI_NB_TAB_FIXED_WIDTH)
+		self.nb.AddTabAreaButton(wx.aui.AUI_BUTTON_WINDOWLIST, wx.RIGHT)
 		sizer = wx.BoxSizer(wx.VERTICAL)
 		sizer.Add(self.nb, 1, wx.EXPAND)
 		self.nbp.SetSizer(sizer)
@@ -1262,6 +1294,13 @@ class TunePanel(wx.Panel):
 		node = self.ptreemodel.ItemToObject(event.GetItem())
 		if isinstance(node, Table):
 			p = wx.Panel(self)
+			g = gridlib.Grid(p)
+			gt = XDFGridTable(self.byts, node.address, node.rows, node.cols)
+			g.SetTable(gt, True)
+			g.AutoSize()
+			sizer = wx.BoxSizer(wx.VERTICAL)
+			sizer.Add(g, 1, wx.EXPAND)
+			p.SetSizer(sizer)
 			self.nb.AddPage(p, node.name)
 
 class HondaECU_GUI(wx.Frame):
