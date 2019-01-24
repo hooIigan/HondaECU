@@ -107,7 +107,7 @@ def HondaECU_CmdLine(args, version, known_bins):
 			state, m = ecu.detect_ecu_state()
 			sys.stdout.write("  state: %s\n" % (m))
 
-			if state == 1 and args.mode == "log":
+			if state in [1,14] and args.mode == "log":
 				print_header()
 				if args.output == None:
 					args.output = sys.stdout
