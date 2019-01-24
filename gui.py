@@ -1424,6 +1424,18 @@ class XDFGridTable(wx.grid.GridTableBase):
 				xxrows = xx.axisinfo['y']['indexcount']
 				xxcols = xx.axisinfo['x']['indexcount']
 				self.cols = np.array(struct.unpack_from(">%d%s" % (xxrows*xxcols, sx), byts, offset=xx.address)).reshape(xxrows, xxcols)
+				if not xx.axisinfo['z']['eq'] is None:
+					def formatCell(x):
+						x = nsp.eval(xx.axisinfo['z']['eq'].replace("X",str(x)))
+						if xx.axisinfo['z']['zot'] == "0":
+							return chr(x)
+						elif xx.axisinfo['z']['zot'] == "1":
+							if not xx.axisinfo['z']['zdp'] is None:
+								return round(x,int(xx.axisinfo['z']['zdp']))
+							return float(x)
+						elif xx.axisinfo['z']['zot'] == "2":
+							return int(x)
+					self.cols = np.vectorize(formatCell)(self.cols)
 		self.rows = None
 		if "linkobjid" in self.axisinfo["y"]:
 			y = self.axisinfo["y"]["linkobjid"]
@@ -1435,6 +1447,18 @@ class XDFGridTable(wx.grid.GridTableBase):
 				yyrows = yy.axisinfo['y']['indexcount']
 				yycols = yy.axisinfo['x']['indexcount']
 				self.rows = np.array(struct.unpack_from(">%d%s" % (yyrows*yycols, sy), byts, offset=yy.address)).reshape(yyrows, yycols)
+				if not yy.axisinfo['z']['eq'] is None:
+					def formatCell(y):
+						y = nsp.eval(yy.axisinfo['z']['eq'].replace("X",str(y)))
+						if yy.axisinfo['z']['zot'] == "0":
+							return chr(y)
+						elif yy.axisinfo['z']['zot'] == "1":
+							if not yy.axisinfo['z']['zdp'] is None:
+								return round(y,int(yy.axisinfo['z']['zdp']))
+							return float(y)
+						elif yy.axisinfo['z']['zot'] == "2":
+							return int(y)
+					self.rows = np.vectorize(formatCell)(self.rows)
 
 	def GetNumberRows(self):
 		return self.data.shape[0]
