@@ -1400,7 +1400,19 @@ class XDFGridTable(wx.grid.GridTableBase):
 		s = "B"
 		if stride == 16:
 			s = "H"
-		self.data = np.array(struct.unpack_from(">%d%s" % (rows*cols, s), byts, offset=address)).reshape(rows, cols)
+		self.data = np.array(struct.unpack_from(">%d%s" % (rows*cols, s), byts, offset=address))
+		if not self.axisinfo['z']['eq'] is None:
+			def formatCell(x):
+				x = nsp.eval(self.axisinfo['z']['eq'].replace("X",str(x)))
+				if self.axisinfo['z']['zot'] == "0":
+					return chr(x)
+				elif self.axisinfo['z']['zot'] == "1":
+					return float(x)
+				elif self.axisinfo['z']['zot'] == "2":
+					return int(x)
+			self.data = np.vectorize(formatCell)(self.data)
+		self.data = self.data.reshape(rows, cols)
+
 		self.cols = None
 		if "linkobjid" in self.axisinfo["x"]:
 			x = self.axisinfo["x"]["linkobjid"]
@@ -1434,18 +1446,9 @@ class XDFGridTable(wx.grid.GridTableBase):
 		return False
 
 	def GetValue(self, row, col):
-		if not self.axisinfo['z']['eq'] is None:
-			z = nsp.eval(self.axisinfo['z']['eq'].replace("X",str(self.data[row][col])))
-			if self.axisinfo['z']['zot'] == "0":
-				return z
-			elif self.axisinfo['z']['zot'] == "1":
-				return float(z)
-			elif self.axisinfo['z']['zot'] == "2":
-				return int(z)
 		return self.data[row][col]
 
 	def GetTypeName(self, row, col):
-		print(self.axisinfo['z']['zot'])
 		if self.axisinfo['z']['zot'] == "0":
 			return wx.grid.GRID_VALUE_STRING
 		elif self.axisinfo['z']['zot'] == "1":
@@ -1519,6 +1522,14 @@ class TunePanel(wx.Panel):
 			gt = XDFGridTable(self.ptreemodel.uids, self.byts, node.address, node.stride, node.axisinfo)
 			g.SetTable(gt, True)
 			g.AutoSize()
+			for c in range(node.axisinfo['x']['indexcount']):
+				g.DisableDragColSize()
+				g.DisableColResize(c)
+				g.AutoSizeColLabelSize(c)
+			for r in range(node.axisinfo['y']['indexcount']):
+				g.DisableDragRowSize()
+				g.DisableRowResize(r)
+				g.AutoSizeRowLabelSize(r)
 			sizer = wx.BoxSizer(wx.VERTICAL)
 			sizer.Add(g, 1, wx.EXPAND)
 			p.SetSizer(sizer)
