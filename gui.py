@@ -1,5 +1,6 @@
 import sys
 import os
+import ast
 import time
 import struct
 from threading import Thread
@@ -19,6 +20,111 @@ import requests
 import platform
 from lxml import etree
 import numpy as np
+
+import operator
+from pyparsing import (Literal, CaselessLiteral, Word, Combine, Group, Optional,
+                       ZeroOrMore, Forward, nums, alphas, oneOf)
+
+class NumericStringParser(object):
+    '''
+    Most of this code comes from the fourFn.py pyparsing example
+
+    '''
+
+    def pushFirst(self, strg, loc, toks):
+        self.exprStack.append(toks[0])
+
+    def pushUMinus(self, strg, loc, toks):
+        if toks and toks[0] == '-':
+            self.exprStack.append('unary -')
+
+    def __init__(self):
+        """
+        expop   :: '^'
+        multop  :: '*' | '/'
+        addop   :: '+' | '-'
+        integer :: ['+' | '-'] '0'..'9'+
+        atom    :: PI | E | real | fn '(' expr ')' | '(' expr ')'
+        factor  :: atom [ expop factor ]*
+        term    :: factor [ multop factor ]*
+        expr    :: term [ addop term ]*
+        """
+        point = Literal(".")
+        e = CaselessLiteral("E")
+        fnumber = Combine(Word("+-" + nums, nums) +
+                          Optional(point + Optional(Word(nums))) +
+                          Optional(e + Word("+-" + nums, nums)))
+        ident = Word(alphas, alphas + nums + "_$")
+        plus = Literal("+")
+        minus = Literal("-")
+        mult = Literal("*")
+        div = Literal("/")
+        lpar = Literal("(").suppress()
+        rpar = Literal(")").suppress()
+        addop = plus | minus
+        multop = mult | div
+        expop = Literal("^")
+        pi = CaselessLiteral("PI")
+        expr = Forward()
+        atom = ((Optional(oneOf("- +")) +
+                 (ident + lpar + expr + rpar | pi | e | fnumber).setParseAction(self.pushFirst))
+                | Optional(oneOf("- +")) + Group(lpar + expr + rpar)
+                ).setParseAction(self.pushUMinus)
+        # by defining exponentiation as "atom [ ^ factor ]..." instead of
+        # "atom [ ^ atom ]...", we get right-to-left exponents, instead of left-to-right
+        # that is, 2^3^2 = 2^(3^2), not (2^3)^2.
+        factor = Forward()
+        factor << atom + \
+            ZeroOrMore((expop + factor).setParseAction(self.pushFirst))
+        term = factor + \
+            ZeroOrMore((multop + factor).setParseAction(self.pushFirst))
+        expr << term + \
+            ZeroOrMore((addop + term).setParseAction(self.pushFirst))
+        # addop_term = ( addop + term ).setParseAction( self.pushFirst )
+        # general_term = term + ZeroOrMore( addop_term ) | OneOrMore( addop_term)
+        # expr <<  general_term
+        self.bnf = expr
+        # map operator symbols to corresponding arithmetic operations
+        epsilon = 1e-12
+        self.opn = {"+": operator.add,
+                    "-": operator.sub,
+                    "*": operator.mul,
+                    "/": operator.truediv,
+                    "^": operator.pow}
+        self.fn = {"sin": math.sin,
+                   "cos": math.cos,
+                   "tan": math.tan,
+                   "exp": math.exp,
+                   "abs": abs,
+                   "trunc": lambda a: int(a),
+                   "round": round,
+                   "sgn": lambda a: abs(a) > epsilon and cmp(a, 0) or 0}
+
+    def evaluateStack(self, s):
+        op = s.pop()
+        if op == 'unary -':
+            return -self.evaluateStack(s)
+        if op in "+-*/^":
+            op2 = self.evaluateStack(s)
+            op1 = self.evaluateStack(s)
+            return self.opn[op](op1, op2)
+        elif op == "PI":
+            return math.pi  # 3.1415926535
+        elif op == "E":
+            return math.e  # 2.718281828
+        elif op in self.fn:
+            return self.fn[op](self.evaluateStack(s))
+        elif op[0].isalpha():
+            return 0
+        else:
+            return float(op)
+
+    def eval(self, num_string, parseAll=True):
+        self.exprStack = []
+        results = self.bnf.parseString(num_string, parseAll)
+        val = self.evaluateStack(self.exprStack[:])
+        return val
+nsp = NumericStringParser()
 
 class USBMonitor(Thread):
 
@@ -1053,27 +1159,71 @@ class RestorePanel(wx.Panel):
 
 def get_table_info(t):
 	n = t.xpath("title")[0].text
-	a = int(t.xpath("XDFAXIS[@id='z']")[0].xpath("EMBEDDEDDATA")[0].get("mmedaddress"),16)
-	s = int(t.xpath("XDFAXIS[@id='z']")[0].xpath("EMBEDDEDDATA")[0].get("mmedelementsizebits"))
-	xindexcount = int(t.xpath("XDFAXIS[@id='x']")[0].xpath("indexcount")[0].text)
-	yindexcount = int(t.xpath("XDFAXIS[@id='y']")[0].xpath("indexcount")[0].text)
-	e = t.xpath("XDFAXIS[@id='x']")[0].xpath("embedinfo")
+	# x-axis
+	xxx = t.xpath("XDFAXIS[@id='x']")[0]
+	xindexcount = int(xxx.xpath("indexcount")[0].text)
+	e = xxx.xpath("embedinfo")
 	if len(e) > 0:
 		xtype = int(e[0].get("type"))
 		xlinkobjid = e[0].get("linkobjid")
 	else:
 		xtype = None
 		xlinkobjid = None
-	e = t.xpath("XDFAXIS[@id='y']")[0].xpath("embedinfo")
+	xot = xxx.xpath("outputtype")
+	if len(xot) > 0:
+		xot = xot[0].text
+	else:
+		xot = None
+	xdp = xxx.xpath("decimalpl")
+	if len(xdp) > 0:
+		xdp = xdp[0].text
+	else:
+		xdp = None
+	# y-axis
+	yyy = t.xpath("XDFAXIS[@id='y']")[0]
+	yindexcount = int(yyy.xpath("indexcount")[0].text)
+	e = yyy.xpath("embedinfo")
 	if len(e) > 0:
 		ytype = int(e[0].get("type"))
 		ylinkobjid = e[0].get("linkobjid")
 	else:
 		ytype = None
 		ylinkobjid = None
+	yot = yyy.xpath("outputtype")
+	if len(yot) > 0:
+		yot = yot[0].text
+	else:
+		yot = None
+	ydp = yyy.xpath("decimalpl")
+	if len(ydp) > 0:
+		ydp = ydp[0].text
+	else:
+		ydp = None
+	# z-axis
+	zzz = t.xpath("XDFAXIS[@id='z']")[0]
+	m = zzz.xpath("MATH")
+	if len(m) > 0:
+		eq = m[0].get('equation')
+	else:
+		eq = None
+	zot = zzz.xpath("outputtype")
+	if len(zot) > 0:
+		zot = zot[0].text
+	else:
+		zot = None
+	zdp = zzz.xpath("decimalpl")
+	if len(zdp) > 0:
+		zdp = zdp[0].text
+	else:
+		zdp = None
+	e = zzz.xpath("EMBEDDEDDATA")[0]
+	a = int(e.get("mmedaddress"),16)
+	s = int(e.get("mmedelementsizebits"))
+	######
 	axisinfo = {
-		'x': {'indexcount': xindexcount, 'type': xtype, 'linkobjid': xlinkobjid},
-		'y': {'indexcount': yindexcount, 'type': ytype, 'linkobjid': ylinkobjid}
+		'x': {'indexcount': xindexcount, 'type': xtype, 'linkobjid': xlinkobjid, 'xot': xot, 'xdp': xdp},
+		'y': {'indexcount': yindexcount, 'type': ytype, 'linkobjid': ylinkobjid, 'yot': yot, 'ydp': ydp},
+		'z': {'eq':eq, 'zot': zot, 'zdp': zdp}
 	}
 	return n,a,s,axisinfo
 
@@ -1284,10 +1434,24 @@ class XDFGridTable(wx.grid.GridTableBase):
 		return False
 
 	def GetValue(self, row, col):
+		if not self.axisinfo['z']['eq'] is None:
+			z = nsp.eval(self.axisinfo['z']['eq'].replace("X",str(self.data[row][col])))
+			if self.axisinfo['z']['zot'] == "0":
+				return z
+			elif self.axisinfo['z']['zot'] == "1":
+				return float(z)
+			elif self.axisinfo['z']['zot'] == "2":
+				return int(z)
 		return self.data[row][col]
 
 	def GetTypeName(self, row, col):
-		return wx.grid.GRID_VALUE_NUMBER
+		print(self.axisinfo['z']['zot'])
+		if self.axisinfo['z']['zot'] == "0":
+			return wx.grid.GRID_VALUE_STRING
+		elif self.axisinfo['z']['zot'] == "1":
+			return wx.grid.GRID_VALUE_FLOAT
+		elif self.axisinfo['z']['zot'] == "2":
+			return wx.grid.GRID_VALUE_NUMBER
 
 	def GetColLabelValue(self, col):
 		if not self.cols is None:
