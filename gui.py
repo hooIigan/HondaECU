@@ -1394,6 +1394,9 @@ class XDFGridTable(wx.grid.GridTableBase):
 
 	def __init__(self, uids, byts, address, stride, axisinfo):
 		wx.grid.GridTableBase.__init__(self)
+		self.dirty = False
+		self.address = address
+		self.stride = stride
 		self.axisinfo = axisinfo
 		rows = self.axisinfo['y']['indexcount']
 		cols = self.axisinfo['x']['indexcount']
@@ -1460,6 +1463,20 @@ class XDFGridTable(wx.grid.GridTableBase):
 							return int(y)
 					self.rows = np.vectorize(formatCell)(self.rows)
 
+	def PackData(self, byts):
+		d = self.data.flatten()
+		if not self.axisinfo['z']['eq'] is None:
+			eq = self.axisinfo['z']['eq'].replace("/","|").replace("*","/").replace("|","*").replace("-","|").replace("+","-").replace("|","+")
+			def formatCell(x):
+				if self.axisinfo['z']['zot'] == "0":
+					x = ord(x)
+				return int(nsp.eval(eq.replace("X",str(x))))
+			d = np.vectorize(formatCell)(d)
+		s = "B"
+		if self.stride == 16:
+			s = "H"
+		struct.pack_into(">%d%s" % (self.axisinfo['y']['indexcount']*self.axisinfo['x']['indexcount'], s), byts, self.address, *d)
+
 	def GetNumberRows(self):
 		return self.data.shape[0]
 
@@ -1470,6 +1487,7 @@ class XDFGridTable(wx.grid.GridTableBase):
 		return False
 
 	def SetValue(self, row, col, value):
+		self.dirty = True
 		self.data[row][col] = value
 
 	def GetValue(self, row, col):
@@ -1620,6 +1638,44 @@ class MyGrid(wx.grid.Grid):
                 else:
                     self.SetCellValue(topleft[0][0] + r, topleft[0][1] + c, '')
 
+class TablePanel(wx.Panel):
+
+	def __init__(self, parent, node):
+		self.parent = parent
+		self.node = node
+		self.uid = node.uniqueid
+		wx.Panel.__init__(self, parent)
+		self.tb = wx.ToolBar(self)
+		save = wx.Image(os.path.join(self.parent.parent.basepath, "images/save.png"), wx.BITMAP_TYPE_ANY).ConvertToBitmap()
+		sb = self.tb.AddTool(wx.ID_SAVE,"Save",save)
+		self.Bind(wx.EVT_MENU, self.OnSave, sb)
+		self.tb.EnableTool(wx.ID_SAVE, False)
+		self.g = MyGrid(self)
+		self.gt = XDFGridTable(self.parent.ptreemodel.uids, self.parent.byts, node.address, node.stride, node.axisinfo)
+		self.g.SetTable(self.gt, True)
+		self.g.AutoSize()
+		for c in range(node.axisinfo['x']['indexcount']):
+			self.g.DisableDragColSize()
+			self.g.DisableColResize(c)
+			self.g.AutoSizeColLabelSize(c)
+		for r in range(node.axisinfo['y']['indexcount']):
+			self.g.DisableDragRowSize()
+			self.g.DisableRowResize(r)
+			self.g.AutoSizeRowLabelSize(r)
+		sizer = wx.BoxSizer(wx.VERTICAL)
+		sizer.Add(self.tb, 0)
+		sizer.Add(self.g, 1, wx.EXPAND)
+		self.SetSizer(sizer)
+		self.g.Bind(wx.grid.EVT_GRID_CELL_CHANGED, self.OnCellChanged)
+
+	def OnSave(self, event):
+		self.gt.PackData(self.parent.byts)
+		self.tb.EnableTool(wx.ID_SAVE, False)
+
+	def OnCellChanged(self, event):
+		self.dirty = True
+		self.tb.EnableTool(wx.ID_SAVE, self.dirty)
+
 class TunePanel(wx.Panel):
 
 	def __init__(self, parent):
@@ -1627,6 +1683,7 @@ class TunePanel(wx.Panel):
 		wx.Panel.__init__(self, parent)
 
 		fnbin = os.path.abspath(os.path.expanduser("bins/CBR500R_MGZ_2013-2016/38770-MGZ-C02.bin"))
+		self.fnbin = os.path.abspath(os.path.expanduser("bins/CBR500R_MGZ_2013-2016/38770-MGZ-C02-mod.bin"))
 		fbin = open(fnbin, "rb")
 		self.nbyts = os.path.getsize(fnbin)
 		self.byts = bytearray(fbin.read(self.nbyts))
@@ -1687,25 +1744,8 @@ class TunePanel(wx.Panel):
 		node = self.ptreemodel.ItemToObject(event.GetItem())
 		if isinstance(node, Table):
 			if not node.uniqueid in self.open_tables:
-				p = wx.Panel(self)
-				p.uid = node.uniqueid
-				g = MyGrid(p)
-				gt = XDFGridTable(self.ptreemodel.uids, self.byts, node.address, node.stride, node.axisinfo)
-				g.SetTable(gt, True)
-				g.AutoSize()
-				for c in range(node.axisinfo['x']['indexcount']):
-					g.DisableDragColSize()
-					g.DisableColResize(c)
-					g.AutoSizeColLabelSize(c)
-				for r in range(node.axisinfo['y']['indexcount']):
-					g.DisableDragRowSize()
-					g.DisableRowResize(r)
-					g.AutoSizeRowLabelSize(r)
-				sizer = wx.BoxSizer(wx.VERTICAL)
-				sizer.Add(g, 1, wx.EXPAND)
-				p.SetSizer(sizer)
-				self.nb.AddPage(p, node.name, select=True)
-				self.open_tables[node.uniqueid] = p
+				self.open_tables[node.uniqueid] = TablePanel(self, node)
+				self.nb.AddPage(self.open_tables[node.uniqueid], node.name, select=True)
 			else:
 				self.nb.SetSelectionToWindow(self.open_tables[node.uniqueid])
 
@@ -1752,6 +1792,10 @@ class HondaECU_GUI(wx.Frame):
 		self.Bind(wx.EVT_MENU, self.OnDebug, debugItem)
 		if not self.args.motoamerica:
 			fileMenu.Append(debugItem)
+		else:
+			saveItem = wx.MenuItem(fileMenu, wx.ID_SAVE, '&Save\tCtrl+S')
+			self.Bind(wx.EVT_MENU, self.OnSave, saveItem)
+			fileMenu.Append(saveItem)
 		self.Bind(wx.EVT_MENU, self.OnClose, quitItem)
 		fileMenu.Append(quitItem)
 		self.menubar.Append(fileMenu, '&File')
@@ -1857,6 +1901,10 @@ class HondaECU_GUI(wx.Frame):
 
 	def __deactivate(self):
 		self.active_device = None
+
+	def OnSave(self, event):
+		with open(self.tunepanel.fnbin, "wb") as f:
+			f.write(self.tunepanel.byts)
 
 	def OnDebug(self, event):
 		if event.IsChecked():
