@@ -23,6 +23,7 @@ install:
 
 build_script:
   - cmd: '%PYTHON_HOME%\python -m PyInstaller --onefile --clean --add-binary images/*;images --add-binary %LIBFTDI%;. HondaECU.py --name HondaECU --icon=images/honda.ico'
+  - cmd: '%PYTHON_HOME%\python -m PyInstaller --onefile --clean --add-binary %LIBFTDI%;. log.py --name log --icon=images/honda.ico'
 
 artifacts:
   - path: dist\*
